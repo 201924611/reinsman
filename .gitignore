@@ -1,0 +1,38 @@
+# 비밀/인증 — 절대 커밋 금지
+.env
+
+# 런타임 생성물 (config.py가 자동 생성) — 주석은 반드시 별도 줄(인라인 주석 금지)
+state/
+logs/
+# 서브에이전트 종료 시 자동 삭제되는 임시 md
+runtime_agents/
+# 실행 추적(토큰·도구체인) JSON
+traces/
+# 자동 채점 결과 JSON
+evals/
+# build_loop 라운드별 스크린샷
+round_shots/
+# 디자인 조사용 원본 사이트 스크래치(대용량 HTML/CSS)
+workspace/_measure/
+# 자기개선 제안·백업(런타임 — 적용된 결과는 orchestrator.md/templates에 반영되어 추적됨)
+self_improve/
+# workspace/ 는 산출물 공유를 위해 추적함 (다른 PC에서 이어가기). 비밀 적재 주의.
+
+# Node / Java 빌드 산출물 (거대 — 커밋 금지)
+node_modules/
+**/node_modules/
+**/target/
+**/.vite/
+
+# 파이썬
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# OS/에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
