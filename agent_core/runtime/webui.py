@@ -46,6 +46,18 @@ CHAT_HTML = """<!doctype html>
   textarea:focus{outline:none;border-color:var(--user)}
   button{background:var(--user);color:#fff;border:0;border-radius:10px;padding:0 16px;height:40px;font:inherit;font-weight:600;cursor:pointer}
   button:disabled{opacity:.5;cursor:default}
+  header .hbtn{background:transparent;border:1px solid var(--border);color:var(--muted);height:24px;width:30px;padding:0;border-radius:6px;font-size:15px;font-weight:500;cursor:pointer}
+  header .hbtn:hover{color:var(--text)}
+  body.collapsed #log{display:none}
+  body.collapsed #routines{display:none}
+  @media (max-width:480px){
+    header{gap:6px;padding:8px 10px}
+    header .sub{display:none}
+    header h1{font-size:14px}
+    #log{padding:12px 10px;gap:10px}
+    .bubble{max-width:92%}
+    footer{padding:10px}
+  }
   #routines input, #routines select{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
   button.mini{height:32px;padding:0 12px;font-size:13px;font-weight:500;border-radius:8px}
   .btn-sec{background:var(--bot);border:1px solid var(--border);color:var(--text)}
@@ -63,6 +75,7 @@ CHAT_HTML = """<!doctype html>
   <a href="#" id="routinesBtn">routines</a>
   <a href="/docs" target="_blank">API</a>
   <a href="/tasks" target="_blank">tasks</a>
+  <button id="collapseBtn" class="hbtn" title="Collapse / expand">–</button>
 </header>
 <div id="routines" style="display:none;border-bottom:1px solid var(--border);padding:12px 16px;max-width:820px;width:100%;margin:0 auto">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
@@ -145,6 +158,21 @@ CHAT_HTML = """<!doctype html>
   input.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
   sendBtn.addEventListener('click', send);
   input.focus();
+
+  // ---- collapse / expand (folds to a slim bar; resizes the native window too) ----
+  const collapseBtn = document.getElementById('collapseBtn');
+  let collapsed = false;
+  collapseBtn.addEventListener('click', () => {
+    collapsed = !collapsed;
+    document.body.classList.toggle('collapsed', collapsed);
+    collapseBtn.textContent = collapsed ? '▢' : '–';
+    collapseBtn.title = collapsed ? 'Expand' : 'Collapse';
+    try {
+      if (window.pywebview && window.pywebview.api && window.pywebview.api.resize) {
+        window.pywebview.api.resize(460, collapsed ? 140 : 640);
+      }
+    } catch (e) {}
+  });
 
   // ---- routines panel (opt-in autonomy) ----
   const rPanel = document.getElementById('routines');

@@ -1,10 +1,11 @@
-"""Desktop app window for agent-core — a real program window, no browser.
+"""Desktop app window for agent-core — a small, collapsible native window (no browser).
 
-Runs the server **in-process** (background thread) and shows the built-in chat + routines
-UI in a native window via pywebview (Windows uses the built-in Edge WebView2). If pywebview
-isn't installed, it falls back to opening the UI in your browser.
+Runs the server in-process and shows the built-in chat + routines UI in a compact native
+window via pywebview. The UI can fold to a slim bar and expand back (the window resizes with
+it via the tiny JS API below), and the layout is responsive. Falls back to the browser if
+pywebview isn't installed.
 
-Works both from source (`python -m agent_core.app`) and as a packaged PyInstaller .exe.
+Run:    python -m agent_core.app
 Extras: pip install pywebview
 """
 from __future__ import annotations
@@ -18,6 +19,10 @@ import webbrowser
 from agent_core import config
 
 URL = f"http://{config.HOST}:{config.PORT}"
+
+# Window sizes for the collapse/expand toggle (used by the JS API from the UI).
+EXPANDED = (460, 640)
+COLLAPSED = (460, 140)
 
 
 def _serve() -> None:
@@ -41,6 +46,19 @@ def _wait_healthy(timeout: int = 40) -> bool:
     return False
 
 
+class _Api:
+    """Exposed to the page as pywebview.api — lets the UI resize its own window."""
+    def __init__(self) -> None:
+        self.window = None
+
+    def resize(self, w: int, h: int) -> None:
+        try:
+            if self.window is not None:
+                self.window.resize(int(w), int(h))
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def main() -> None:
     threading.Thread(target=_serve, daemon=True).start()
     _wait_healthy()
@@ -49,7 +67,7 @@ def main() -> None:
         import webview  # pywebview
     except Exception:  # noqa: BLE001 — not installed: fall back to the browser
         print(f"[agent-core] pywebview not installed — opening in your browser at {URL}.")
-        print("[agent-core] `pip install pywebview` for a native app window. Ctrl+C to stop.")
+        print("[agent-core] `pip install pywebview` for the native window. Ctrl+C to stop.")
         webbrowser.open(URL)
         try:
             while True:
@@ -58,7 +76,13 @@ def main() -> None:
             pass
         return
 
-    webview.create_window("agent-core", URL, width=980, height=760, min_size=(680, 520))
+    api = _Api()
+    api.window = webview.create_window(
+        "agent-core", URL,
+        width=EXPANDED[0], height=EXPANDED[1],
+        min_size=(340, 130),
+        js_api=api,
+    )
     webview.start()   # blocks until the window is closed; the daemon server thread exits with it
 
 
