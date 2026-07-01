@@ -48,6 +48,29 @@ curl -s http://127.0.0.1:8848/goal \
   -d '{"goal": "create hello.txt in workspace with hi"}'
 ```
 
+## Run as a desktop app (auto-start)
+Treat it like an always-on app instead of a terminal command.
+
+**Tray launcher** — starts the server, opens the chat, and (with optional deps) shows a
+tray icon with Open / Restart / Quit:
+```bash
+pip install pystray pillow          # optional — enables the tray icon
+python -m agent_core.tray
+```
+Without `pystray`/`pillow` it still starts the server and opens the browser (Ctrl+C to stop).
+
+**Auto-start at logon (Windows)** — register a hidden watchdog task that launches the
+server whenever you log in (and restarts it if it exits):
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\autostart.ps1 -Install
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\autostart.ps1 -Uninstall   # to remove
+```
+(macOS/Linux: run `python -m agent_core.tray` from your login items, or wrap `run.ps1`'s
+equivalent in a `systemd --user` / `launchd` unit.)
+
+Note: even as an app, each user still authenticates once (`ANTHROPIC_API_KEY` in `.env`
+or a Claude CLI login) — credentials are never bundled.
+
 ## Chat UI & channels
 The **built-in web chat** (served at `/`) is the zero-setup way to use the harness —
 just run the server and open the browser. It posts to `/goal` and streams live progress.
