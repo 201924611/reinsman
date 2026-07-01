@@ -51,8 +51,14 @@ curl -s http://127.0.0.1:8848/goal \
 ## Run as a desktop app (auto-start)
 Treat it like an always-on app instead of a terminal command.
 
-**Tray launcher** — starts the server, opens the chat, and (with optional deps) shows a
-tray icon with Open / Restart / Quit:
+**Native window** — run it as a real program window (no browser). It starts the server and
+shows the chat + routines UI in a native window (Windows uses the built-in Edge WebView2):
+```bash
+pip install pywebview          # for the native window
+python -m agent_core.app       # opens the app window (falls back to browser if pywebview is missing)
+```
+
+**Tray launcher** — instead of a window, keep it in the tray (Open / Restart / Quit):
 ```bash
 pip install pystray pillow          # optional — enables the tray icon
 python -m agent_core.tray
