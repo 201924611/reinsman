@@ -4,11 +4,12 @@ Permanently archives the data that subagents collect/synthesize as a structured
 markdown wiki. Unlike runtime_agents/ (temporary and deleted), this store is
 tracked in git and preserved.
 
-Origin: a simplified and hardened adaptation of the user-supplied 'knowledge-policy'
-template for agent-core.
-(Inspiration: Andrej Karpathy's LLM-Wiki / 'external brain' concept, plus
- reinforcement-learning-style reward policy ideas. Here 'RL' is not a trained
- model but a lightweight heuristic based on feedback logs.)
+Conceptual basis (public academic knowledge): the agent–reward framing of
+reinforcement learning (Sutton & Barto, "Reinforcement Learning: An Introduction",
+2nd ed.) and the contextual multi-armed bandit view of picking a category to
+maximize an immediate feedback reward. Here 'RL' is not a trained model but a
+lightweight heuristic driven by a feedback log. Also inspired by the
+'external brain / second brain' note-taking idea.
 """
 from __future__ import annotations
 
@@ -233,7 +234,7 @@ def git_sync(message: str) -> str:
     try:
         run = lambda *a: subprocess.run(a, cwd=str(config.ROOT), check=True, capture_output=True)
         run("git", "add", "knowledge")
-        run("git", "commit", "-m", f"[knowledge-policy] {message}")
+        run("git", "commit", "-m", f"[kb] {message}")
         if config.KB_GIT_PUSH:
             run("git", "push", "origin", "main")
         logger.info(f"[kb] git sync complete: {message}")
