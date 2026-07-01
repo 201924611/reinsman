@@ -27,9 +27,10 @@ import urllib.error
 from pathlib import Path
 from typing import Any, Protocol
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import config  # noqa: E402
-from applog import get_logger  # noqa: E402
+# allow running as a script (python agent_core/channels/telegram_bridge.py) — add repo root to path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from agent_core import config  # noqa: E402
+from agent_core.applog import get_logger  # noqa: E402
 
 try:  # keep Unicode/emoji output from breaking even on a Windows console (cp949)
     sys.stdout.reconfigure(encoding="utf-8")

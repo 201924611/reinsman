@@ -23,8 +23,9 @@ from pathlib import Path
 
 from claude_agent_sdk import tool, create_sdk_mcp_server
 
-import config
-from applog import get_logger
+from agent_core import config
+
+from agent_core.applog import get_logger
 
 logger = get_logger()
 

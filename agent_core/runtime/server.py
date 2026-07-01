@@ -20,13 +20,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-import config
-import routines
-from agent_loader import list_agents, load_agent
-from applog import get_logger
-from template_engine import list_templates, load_template
-from orchestrator import run_goal
-from task_store import store
+from agent_core import config
+
+from agent_core.runtime import routines
+
+from agent_core.prompts.agent_loader import list_agents, load_agent
+from agent_core.applog import get_logger
+from agent_core.prompts.template_engine import list_templates, load_template
+from agent_core.runtime.orchestrator import run_goal
+from agent_core.storage.task_store import store
 
 logger = get_logger()
 
@@ -172,7 +174,8 @@ async def resume_task(task_id: str):
 
     cont_prompt = config.get_resume_prompt()
     # Resuming keeps the same configuration (variant) (read from the trace)
-    import tracing
+    from agent_core.observability import tracing
+
     tr = tracing.store.get(task_id) or {}
     variant = tr.get("variant", "default")
     store.append_event(task_id, "resume", f"resume started (session={t.session_id})")
@@ -233,7 +236,7 @@ async def runtime_agents():
 @app.get("/knowledge")
 async def knowledge():
     """List of documents stored in the persistent knowledge store (knowledge/10_Wiki)."""
-    from knowledge_store import list_entries
+    from agent_core.kb.knowledge_store import list_entries
     return {"count": len(list_entries()), "entries": list_entries()}
 
 
@@ -253,7 +256,7 @@ async def knowledge_feedback(req: FeedbackRequest):
         return {"ok": False, "error": "note is empty."}
     if req.approved is not None:
         note = f"[{'approved' if req.approved else 'rejected'}] {note}"
-    from knowledge_store import record_feedback
+    from agent_core.kb.knowledge_store import record_feedback
     record_feedback(note)
     return {"ok": True, "recorded": note}
 
@@ -261,7 +264,8 @@ async def knowledge_feedback(req: FeedbackRequest):
 @app.get("/traces")
 async def list_traces():
     """List of recorded traces (configuration label + token/tool aggregates)."""
-    import tracing
+    from agent_core.observability import tracing
+
     out = []
     for tid in tracing.store.list_ids():
         tr = tracing.store.get(tid)
@@ -275,7 +279,8 @@ async def list_traces():
 @app.get("/trace/{task_id}")
 async def get_trace(task_id: str):
     """A task's full trace (spans, tool chain, sessions) + aggregates."""
-    import tracing
+    from agent_core.observability import tracing
+
     tr = tracing.store.get(task_id)
     if not tr:
         raise HTTPException(status_code=404, detail="trace not found")
@@ -284,20 +289,23 @@ async def get_trace(task_id: str):
 
 @app.get("/trace/{task_id}/view", response_class=HTMLResponse)
 async def trace_view(task_id: str):
-    import viewer
+    from agent_core.observability import viewer
+
     return viewer.trace_view_html(task_id)
 
 
 @app.post("/tasks/{task_id}/evaluate")
 async def evaluate_task(task_id: str):
     """Automatically score a task (LLM judge + rule-based metrics), then store and return the result."""
-    import evaluation
+    from agent_core.observability import evaluation
+
     return await evaluation.evaluate(task_id)
 
 
 @app.get("/eval/{task_id}")
 async def get_eval(task_id: str):
-    import evaluation
+    from agent_core.observability import evaluation
+
     e = evaluation.get_eval(task_id)
     if not e:
         raise HTTPException(status_code=404, detail="no evaluation (run POST /tasks/{id}/evaluate first)")
@@ -307,8 +315,10 @@ async def get_eval(task_id: str):
 @app.get("/compare")
 async def compare(ids: str):
     """Compare several tasks side by side by configuration (variant) (trace aggregates + eval scores)."""
-    import tracing
-    import evaluation
+    from agent_core.observability import tracing
+
+    from agent_core.observability import evaluation
+
     rows = []
     for tid in [x.strip() for x in ids.split(",") if x.strip()]:
         tr = tracing.store.get(tid) or {}
@@ -332,7 +342,8 @@ async def compare(ids: str):
 
 @app.get("/compare/view", response_class=HTMLResponse)
 async def compare_view(ids: str):
-    import viewer
+    from agent_core.observability import viewer
+
     return viewer.compare_view_html(ids)
 
 
@@ -349,19 +360,22 @@ class ABRequest(BaseModel):
 @app.post("/self-improve/propose")
 async def si_propose(req: ProposeRequest):
     """Analyze recent evals and produce an improvement proposal for the target prompt. (Doesn't touch the live file.)"""
-    import self_improve
+    from agent_core.runtime import self_improve
+
     return await self_improve.propose(target=req.target, n=req.n)
 
 
 @app.get("/self-improve/proposals")
 async def si_list():
-    import self_improve
+    from agent_core.runtime import self_improve
+
     return self_improve.list_proposals()
 
 
 @app.get("/self-improve/proposal/{pid}")
 async def si_get(pid: str):
-    import self_improve
+    from agent_core.runtime import self_improve
+
     p = self_improve.get_proposal(pid)
     if not p:
         raise HTTPException(status_code=404, detail="unknown proposal")
@@ -371,7 +385,8 @@ async def si_get(pid: str):
 @app.post("/self-improve/apply/{pid}")
 async def si_apply(pid: str):
     """Apply a candidate to the live prompt (human-approval gate). Auto-backup before applying."""
-    import self_improve
+    from agent_core.runtime import self_improve
+
     r = self_improve.apply(pid)
     if "error" in r:
         raise HTTPException(status_code=400, detail=r["error"])
@@ -380,7 +395,8 @@ async def si_apply(pid: str):
 
 @app.post("/self-improve/revert")
 async def si_revert(target: str = "orchestrator"):
-    import self_improve
+    from agent_core.runtime import self_improve
+
     r = self_improve.revert(target)
     if "error" in r:
         raise HTTPException(status_code=400, detail=r["error"])
@@ -391,7 +407,8 @@ async def si_revert(target: str = "orchestrator"):
 async def si_ab(req: ABRequest):
     """Run the same goal simultaneously with the current (baseline) vs. candidate prompt.
     When done, evaluate each and compare scores via /compare. (The candidate is injected without any live change.)"""
-    import self_improve
+    from agent_core.runtime import self_improve
+
     if not self_improve.proposal_text(req.proposal_id):
         raise HTTPException(status_code=404, detail="unknown proposal")
     goal = req.goal.strip()

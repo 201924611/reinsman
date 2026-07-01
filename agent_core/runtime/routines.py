@@ -16,7 +16,8 @@ import uuid
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone, timedelta
 
-import config
+from agent_core import config
+
 
 
 def _now() -> datetime:

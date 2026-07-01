@@ -13,7 +13,7 @@ Write-Host "[agent-core] Starting 24h operation. Press Ctrl+C twice to stop." -F
 
 while ($true) {
     try {
-        python server.py
+        python -m agent_core
     } catch {
         Write-Host "[agent-core] Server exception: $_" -ForegroundColor Red
     }

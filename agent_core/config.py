@@ -6,8 +6,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Project root
-ROOT = Path(__file__).resolve().parent
+# Project root (repo root — this file lives at <root>/agent_core/config.py)
+ROOT = Path(__file__).resolve().parent.parent
 
 # Load .env (if present)
 load_dotenv(ROOT / ".env")

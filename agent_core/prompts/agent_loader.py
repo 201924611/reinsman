@@ -19,7 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import config
+from agent_core import config
+
 
 AGENTS_DIR = config.ROOT / "agents"
 

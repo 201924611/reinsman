@@ -13,7 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import config
+from agent_core import config
+
 
 
 def _now() -> str:
@@ -95,7 +96,7 @@ class TaskStore:
             t.log(kind, message, **extra)
             self._flush()
         # Also write to the log file outside the lock (records orchestration activity)
-        from applog import log_event
+        from agent_core.applog import log_event
         log_event(task_id, kind, message)
 
 

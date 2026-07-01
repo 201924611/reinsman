@@ -16,16 +16,18 @@ from claude_agent_sdk import (
     ResultMessage,
 )
 
-import config
-import tracing
-from agent_factory import (
+from agent_core import config
+
+from agent_core.observability import tracing
+
+from agent_core.runtime.agent_factory import (
     build_factory_server, build_knowledge_server, build_notion_server,
     current_task_id, current_orch_span, run_overrides,
 )
-from agent_loader import load_agent
-from applog import get_logger
-from task_store import store
-from tools.publish import build_publish_server
+from agent_core.prompts.agent_loader import load_agent
+from agent_core.applog import get_logger
+from agent_core.storage.task_store import store
+from agent_core.tools.publish import build_publish_server
 
 logger = get_logger()
 
@@ -51,7 +53,7 @@ def _knowledge_index_block() -> str:
     tool. Returns an empty string (no injection) if the index is missing or empty.
     """
     try:
-        from knowledge_store import INDEX_PATH, KB_DIR
+        from agent_core.kb.knowledge_store import INDEX_PATH, KB_DIR
         if not INDEX_PATH.exists():
             return ""
         idx = INDEX_PATH.read_text(encoding="utf-8").strip()
@@ -80,7 +82,8 @@ def _make_options(resume_session: str | None = None) -> ClaudeAgentOptions:
     override_prompt = ov.get("system_prompt")
     if not override_prompt and ov.get("system_prompt_proposal"):
         try:
-            import self_improve
+            from agent_core.runtime import self_improve
+
             override_prompt = self_improve.proposal_text(ov["system_prompt_proposal"])
         except Exception:  # noqa: BLE001
             override_prompt = None

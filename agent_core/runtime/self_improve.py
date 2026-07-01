@@ -19,8 +19,10 @@ from pathlib import Path
 
 from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, TextBlock
 
-import config
-import evaluation
+from agent_core import config
+
+from agent_core.observability import evaluation
+
 
 SI_DIR = config.ROOT / "self_improve"
 BACKUP_DIR = SI_DIR / "backups"

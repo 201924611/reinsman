@@ -9,7 +9,7 @@
 context management, memory, observability, and safety scaffolding around the model.
 
 ```
-HTTP POST /goal  ──▶  central orchestrator (orchestrator.py)
+HTTP POST /goal  ──▶  central orchestrator (agent_core/runtime/orchestrator.py)
                         │  spawn_agent / build_loop / spawn_parallel
                         ├──▶ sub-agent ─(done)→ runtime md auto-deleted
                         ├──▶ sub-agent ─(done)→ ...
@@ -19,8 +19,8 @@ HTTP GET /tasks/{id} ──▶ progress / result
 ```
 
 ## Features
-- **Central orchestrator loop** with auto-resume on turn exhaustion (`orchestrator.py`)
-- **Dynamic sub-agents** from cited prompt templates (`agent_factory.py`, `templates/`)
+- **Central orchestrator loop** with auto-resume on turn exhaustion (`agent_core/runtime/orchestrator.py`)
+- **Dynamic sub-agents** from cited prompt templates (`agent_core/runtime/agent_factory.py`, `templates/`)
 - **`build_loop`** — planner → executor → evaluator iteration with best-round snapshot restore
 - **Persistent knowledge graph** — `save_knowledge` writes an Obsidian-compatible vault
   (`knowledge/`, `[[wikilinks]]` + auto Index/Graph)
@@ -33,7 +33,7 @@ HTTP GET /tasks/{id} ──▶ progress / result
 python -m venv .venv && . .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cp .env.example .env        # then edit (see below)
-python server.py            # serves on 127.0.0.1:8848
+python -m agent_core        # serves on 127.0.0.1:8848
 ```
 Authentication: either set `ANTHROPIC_API_KEY` in `.env`, or log in with the Claude
 Code CLI (leave the key blank and the SDK follows the CLI session).
@@ -51,21 +51,27 @@ reuses an existing chat app as the UI — no custom frontend needed, and convers
 resume across devices.
 ```bash
 # .env: TELEGRAM_BOT_TOKEN=...  TELEGRAM_ALLOWED_CHAT_IDS=<your chat id>
-python channels/telegram_bridge.py            # live
-python channels/telegram_bridge.py --dry-run  # logic self-test, no token needed
+python -m agent_core.channels.telegram_bridge            # live
+python -m agent_core.channels.telegram_bridge --dry-run  # logic self-test, no token needed
 ```
 
 ## Layout
+Source lives in the `agent_core/` package, grouped by type; data/prompt folders stay at the repo root.
+
 | Path | Role |
 |---|---|
-| `server.py` | FastAPI entrypoint / control plane |
-| `orchestrator.py` | central agent loop |
-| `agent_factory.py` | sub-agent spawning + `build_loop` + `save_knowledge` |
-| `templates/` | cited prompt templates (CO-STAR / ReAct / Expert / planner-executor-evaluator) |
-| `channels/` | messenger adapters (chat front) |
+| `agent_core/__main__.py` | entry point (`python -m agent_core`) |
+| `agent_core/config.py` · `applog.py` | configuration & logging |
+| `agent_core/runtime/` | `server` (FastAPI), `orchestrator`, `agent_factory` (spawn + `build_loop`), `routines`, `self_improve` |
+| `agent_core/prompts/` | `agent_loader`, `template_engine` |
+| `agent_core/kb/` | `knowledge_store` (persistent wiki) |
+| `agent_core/observability/` | `tracing`, `evaluation`, `viewer` |
+| `agent_core/storage/` | `task_store` |
+| `agent_core/channels/` | messenger adapters (chat front, e.g. Telegram) |
+| `agent_core/tools/` | agent-callable tools (e.g. `publish`) |
+| `agents/` · `templates/` | agent definitions & cited prompt templates (`.md`) |
 | `knowledge/` | persistent Obsidian-style knowledge vault (empty scaffold here) |
-| `tracing.py` · `evaluation.py` | observability |
-| `routines.py` | recurring-routine scheduler |
+| `tools/screenshot/` | standalone Playwright screenshot scripts |
 
 ## Safety
 This harness can run with broad autonomy (`PERMISSION_MODE`). Before exposing it to a

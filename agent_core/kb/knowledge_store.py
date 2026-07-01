@@ -21,8 +21,9 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import config
-from applog import get_logger
+from agent_core import config
+
+from agent_core.applog import get_logger
 
 logger = get_logger()
 

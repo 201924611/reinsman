@@ -1,13 +1,12 @@
-# agent-core server launcher (full-path python + Node/Java on PATH + watchdog loop).
+# agent-core server launcher (watchdog loop).
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File run_server.ps1
-$dir = "C:\Users\offic\Desktop\claude\agent-core"
-$py  = "C:\Users\offic\AppData\Local\Programs\Python\Python312\python.exe"
-$jbr = "C:\Program Files\JetBrains\IntelliJ IDEA 2026.1.2\jbr\bin"
-$env:PATH = "C:\Program Files\nodejs;$jbr;$env:PATH"
-Set-Location $dir
+Set-Location $PSScriptRoot
+$py = "python"   # or set a full path to your python.exe
+# If sub-agents build web/Java projects, ensure Node/Java are on PATH, e.g.:
+# $env:PATH = "C:\Program Files\nodejs;C:\path\to\jbr\bin;$env:PATH"
 while ($true) {
-    Write-Host "[agent-core] starting server.py ..."
-    & $py server.py
+    Write-Host "[agent-core] starting (python -m agent_core) ..."
+    & $py -m agent_core
     Write-Host "[agent-core] server exited; restart in 5s"
     Start-Sleep -Seconds 5
 }

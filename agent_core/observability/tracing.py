@@ -17,7 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import config
+from agent_core import config
+
 
 TRACES_DIR = config.ROOT / "traces"
 TRACES_DIR.mkdir(parents=True, exist_ok=True)

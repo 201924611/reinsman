@@ -11,7 +11,8 @@ import logging
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 
-import config
+from agent_core import config
+
 
 _logger: logging.Logger | None = None
 
