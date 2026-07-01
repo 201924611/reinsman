@@ -249,24 +249,35 @@ async def knowledge():
 
 
 class FeedbackRequest(BaseModel):
-    note: str                       # a one-line piece of user feedback (for validating classifications/lessons)
-    approved: bool | None = None    # whether the lesson is approved (optional) — if True/False, prefixed to the note
+    note: str                       # a one-line piece of user feedback
+    approved: bool | None = None    # shorthand: True->signal "approved", False->"rejected"
+    category: str | None = None     # the category the feedback is about (rel path under 10_Wiki)
+    signal: str | None = None       # approved | praised | kept | edited | rejected | moved
+    moved_to: str | None = None     # if you moved it, the corrected category (teaches a redirect)
 
 
 @app.post("/knowledge/feedback")
 async def knowledge_feedback(req: FeedbackRequest):
-    """Accumulate user feedback into Policy.md (a lightweight heuristic: the archivist/orchestrator
-    consults it when making the next classification/lesson decision).
-    This is the user-confirmation channel for the lesson-validation gate — facts are stored
-    automatically, but lessons and rules are confirmed/corrected via this feedback."""
+    """Record user feedback and feed the bandit loop: structured signals update a per-category
+    reward tally, and repeated `moved_to` corrections make save_knowledge auto-redirect that
+    category next time. A human-readable line is also appended to Policy.md."""
     note = (req.note or "").strip()
     if not note:
         return {"ok": False, "error": "note is empty."}
-    if req.approved is not None:
-        note = f"[{'approved' if req.approved else 'rejected'}] {note}"
+    signal = req.signal
+    if signal is None and req.approved is not None:
+        signal = "approved" if req.approved else "rejected"
     from agent_core.kb.knowledge_store import record_feedback
-    record_feedback(note)
-    return {"ok": True, "recorded": note}
+    record_feedback(note, category=req.category, signal=signal, moved_to=req.moved_to)
+    return {"ok": True, "recorded": note, "category": req.category,
+            "signal": signal, "moved_to": req.moved_to}
+
+
+@app.get("/knowledge/policy")
+async def knowledge_policy():
+    """Current feedback policy: average reward per category + learned corrections (bandit state)."""
+    from agent_core.kb.knowledge_store import policy_scores
+    return policy_scores()
 
 
 @app.get("/traces")

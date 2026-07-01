@@ -33,10 +33,19 @@ WIKI_DIR = KB_DIR / "10_Wiki"
 META_DIR = KB_DIR / "20_Meta"
 GRAPH_PATH = META_DIR / "Graph.json"
 INDEX_PATH = META_DIR / "Index.md"
-POLICY_PATH = META_DIR / "Policy.md"
+POLICY_PATH = META_DIR / "Policy.md"       # human-readable feedback log
+POLICY_JSON = META_DIR / "policy.json"     # machine-readable feedback policy (bandit-style)
 
 STD_CATEGORIES = ["Projects", "Topics", "Decisions", "Skills"]
 REFACTOR_THRESHOLD = 12  # suggest splitting a folder once its document count exceeds this
+
+# Reward assigned to each feedback signal. A lightweight contextual-bandit heuristic —
+# not a trained model: feedback updates a per-category reward tally and learned corrections.
+SIGNAL_REWARD = {
+    "approved": 1.0, "praised": 1.0, "kept": 0.5,
+    "edited": 0.0, "rejected": -1.0, "moved": -1.0,
+}
+CORRECTION_MIN = 2   # repeated corrections needed before a category is auto-redirected
 
 _lock = threading.Lock()
 
@@ -158,7 +167,8 @@ def save_knowledge(
     """Save a single knowledge entry in wiki format and refresh the Index/Graph."""
     _ensure_dirs()
     with _lock:
-        rel_cat = _norm_category(category)
+        norm_cat = _norm_category(category)
+        rel_cat = _apply_learned_correction(norm_cat)   # bandit loop: honor learned corrections
         folder = WIKI_DIR / rel_cat
         folder.mkdir(parents=True, exist_ok=True)
         slug = _slug(title)
@@ -211,6 +221,7 @@ def save_knowledge(
             "path": str(path.relative_to(config.ROOT)).replace("\\", "/"),
             "id": doc_id,
             "category": rel_cat,
+            "redirected_from": norm_cat if rel_cat != norm_cat else None,
             "suggestion": suggestion,
         }
 
@@ -220,12 +231,86 @@ def list_entries() -> list[str]:
     return sorted(m.relative_to(KB_DIR).as_posix() for m in WIKI_DIR.rglob("*.md"))
 
 
-def record_feedback(note: str) -> None:
-    """Append user feedback to Policy.md (referenced during future classification)."""
+# ───────────────────────── feedback policy (bandit-style) ─────────────────────────
+def _load_policy() -> dict:
+    """Read the machine-readable feedback policy. Lock-free (caller manages locking)."""
+    try:
+        d = json.loads(POLICY_JSON.read_text(encoding="utf-8"))
+    except Exception:
+        d = {}
+    d.setdefault("categories", {})   # {rel_cat: {"n": int, "reward": float}}
+    d.setdefault("corrections", {})  # {from_rel_cat: {to_rel_cat: count}}
+    return d
+
+
+def _save_policy(pol: dict) -> None:
+    META_DIR.mkdir(parents=True, exist_ok=True)
+    POLICY_JSON.write_text(json.dumps(pol, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _apply_learned_correction(category: str) -> str:
+    """Redirect a category if past feedback repeatedly moved it elsewhere.
+    Lock-free — call from within an already-held `_lock` (e.g. save_knowledge)."""
+    corr = _load_policy()["corrections"].get(category, {})
+    if not corr:
+        return category
+    target, count = max(corr.items(), key=lambda kv: kv[1])
+    if target != category and count >= CORRECTION_MIN:
+        logger.info(f"[kb] learned correction: {category} -> {target} (seen {count}x)")
+        return target
+    return category
+
+
+def policy_scores() -> dict:
+    """Average reward per category (higher = feedback preferred filing there) + learned corrections."""
+    pol = _load_policy()
+    scores = {c: round(s["reward"] / s["n"], 3)
+              for c, s in pol["categories"].items() if s.get("n")}
+    return {
+        "scores": dict(sorted(scores.items(), key=lambda kv: kv[1], reverse=True)),
+        "corrections": pol["corrections"],
+    }
+
+
+def record_feedback(note: str, *, category: str | None = None,
+                    signal: str | None = None, moved_to: str | None = None) -> None:
+    """Record user feedback and let it actually influence future classification.
+
+    - Always appends a human-readable line to Policy.md (transparency).
+    - When structured fields are given, updates policy.json (the bandit loop):
+        * `signal`   -> reward for `category` (see SIGNAL_REWARD)
+        * `moved_to` -> teaches that `category` should be redirected to `moved_to`;
+          once seen CORRECTION_MIN times, save_knowledge auto-applies the redirect.
+    `category`/`moved_to` are normalized to the same rel-path scheme save_knowledge uses.
+    """
     _ensure_dirs()
+    if category:
+        category = _norm_category(category)
+    if moved_to:
+        moved_to = _norm_category(moved_to)
+    tag = "".join(x for x in (
+        f" cat={category}" if category else "",
+        f" signal={signal}" if signal else "",
+        f" ->{moved_to}" if moved_to else "",
+    ))
     with _lock:
         with POLICY_PATH.open("a", encoding="utf-8") as f:
-            f.write(f"- {_now_iso()} {note}\n")
+            f.write(f"- {_now_iso()}{tag} {note}\n")
+        if category or signal or moved_to:
+            pol = _load_policy()
+            if category:
+                c = pol["categories"].setdefault(category, {"n": 0, "reward": 0.0})
+                eff = signal or ("moved" if moved_to else None)
+                if eff:
+                    c["n"] += 1
+                    c["reward"] += SIGNAL_REWARD.get(eff, 0.0)
+            if category and moved_to:
+                dst = pol["corrections"].setdefault(category, {})
+                dst[moved_to] = dst.get(moved_to, 0) + 1
+                t = pol["categories"].setdefault(moved_to, {"n": 0, "reward": 0.0})
+                t["n"] += 1
+                t["reward"] += SIGNAL_REWARD["approved"]
+            _save_policy(pol)
 
 
 def git_sync(message: str) -> str:

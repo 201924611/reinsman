@@ -1,17 +1,22 @@
-// Screen screenshot tool — captures the landing page plus each tab/view of a single SPA.
-// Usage: node shoot.mjs <baseURL> <outDir> <label>
+// Multi-view screenshot tool — captures the landing page plus each named tab/view of an SPA.
+// Usage: node shoot.mjs <baseURL> <outDir> <label> [tab1,tab2,...]
+//   - tab labels can be passed as the 4th arg or via SHOT_TABS env (comma-separated).
+//   - intro-modal dismiss labels can be overridden via SHOT_DISMISS (comma-separated).
+// With no tabs given, it just captures the landing page. Nothing app-specific is hardcoded.
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
-const [, , baseURL, outDir, label] = process.argv;
+const [, , baseURL, outDir, label, tabsArg] = process.argv;
 if (!baseURL || !outDir || !label) {
-  console.error('usage: node shoot.mjs <baseURL> <outDir> <label>');
+  console.error('usage: node shoot.mjs <baseURL> <outDir> <label> [tab1,tab2,...]');
   process.exit(1);
 }
 fs.mkdirSync(outDir, { recursive: true });
 
-// Candidate tab/sidebar item labels (tried across both the old and new layouts)
-const TABS = ['대시보드', '소득', '경비', '세금', '데이터', '설정'];
+const TABS = (tabsArg || process.env.SHOT_TABS || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+const DISMISS = (process.env.SHOT_DISMISS || 'Accept,OK,Agree,Continue,Got it,Start,Close,Dismiss,Skip')
+  .split(',').map(s => s.trim()).filter(Boolean);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
@@ -26,8 +31,7 @@ try {
   await page.goto(baseURL, { waitUntil: 'networkidle', timeout: 30000 });
 } catch { /* keep going even if networkidle fails */ }
 await page.waitForTimeout(1800);
-// If a first-entry modal (disclaimer consent, etc.) appears, try to close it
-for (const t of ['동의', '확인', '시작', '닫기', 'Accept', 'OK']) {
+for (const t of DISMISS) {
   try {
     const b = page.locator(`button:has-text("${t}")`).first();
     if (await b.count()) { await b.click({ timeout: 1500 }); await page.waitForTimeout(500); break; }
