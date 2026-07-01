@@ -2,12 +2,40 @@
 from __future__ import annotations
 
 import os
+import shutil
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Project root (repo root — this file lives at <root>/agent_core/config.py)
-ROOT = Path(__file__).resolve().parent.parent
+
+def _seed(root: Path, bundle: Path) -> None:
+    """First-run seed for a packaged (.exe) build: copy read-only assets from the bundle
+    into the writable data home so knowledge/self-improve/routines can persist and be edited."""
+    root.mkdir(parents=True, exist_ok=True)
+    for sub in ("templates", "agents", "knowledge"):
+        src, dst = bundle / sub, root / sub
+        if src.exists() and not dst.exists():
+            try:
+                shutil.copytree(src, dst)
+            except Exception:  # noqa: BLE001
+                pass
+    envf = root / ".env"
+    if not envf.exists() and (bundle / ".env.example").exists():
+        try:
+            shutil.copy(bundle / ".env.example", envf)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+# Project root = the writable data home.
+#  - From source: the repo root (this file is <root>/agent_core/config.py).
+#  - Frozen (.exe): AGENT_CORE_HOME or ~/.agent-core, seeded from the bundled assets.
+if getattr(sys, "frozen", False):
+    ROOT = Path(os.environ.get("AGENT_CORE_HOME") or (Path.home() / ".agent-core")).resolve()
+    _seed(ROOT, Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)))
+else:
+    ROOT = Path(__file__).resolve().parent.parent
 
 # Load .env (if present)
 load_dotenv(ROOT / ".env")

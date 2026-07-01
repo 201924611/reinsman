@@ -58,6 +58,13 @@ pip install pywebview          # for the native window
 python -m agent_core.app       # opens the app window (falls back to browser if pywebview is missing)
 ```
 
+**Single .exe (no Python needed)** — package the native-window app into one double-click executable:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_exe.ps1   # -> dist\agent-core.exe
+```
+The bundle is large (claude-agent-sdk ships its own CLI). On first run the .exe seeds `~/.agent-core`
+(templates / agents / knowledge / `.env`); authenticate once there.
+
 **Tray launcher** — instead of a window, keep it in the tray (Open / Restart / Quit):
 ```bash
 pip install pystray pillow          # optional — enables the tray icon
