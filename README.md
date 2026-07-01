@@ -63,10 +63,10 @@ python -m agent_core.app       # opens the app window (falls back to browser if 
 powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_exe.ps1   # -> dist\agent-core.exe
 ```
 This build **does not include Claude** — Claude Code is Anthropic's proprietary software and is not
-redistributed here. The `.exe` still needs Claude present (an `ANTHROPIC_API_KEY`, or the Claude Code
-CLI installed on the machine). On first run it seeds `~/.agent-core` (templates / agents / knowledge / `.env`).
-For a **personal, machine-local** all-in-one that embeds your own CLI, set `BUNDLE_CLAUDE=1` before building
-— but do not publish or share that `.exe` (it would redistribute Anthropic's software).
+bundled or redistributed here. The `.exe` requires Claude to be present at runtime (an
+`ANTHROPIC_API_KEY`, or the Claude Code CLI on PATH). On first run it seeds `~/.agent-core`
+(templates / agents / knowledge / `.env`). For most use, just **run from source / the app launcher**
+above with your own Claude — that's the simplest way to test.
 
 **Tray launcher** — instead of a window, keep it in the tray (Open / Restart / Quit):
 ```bash

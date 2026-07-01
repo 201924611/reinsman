@@ -18,22 +18,10 @@ for pkg in ("claude_agent_sdk", "webview", "uvicorn", "fastapi", "starlette",
         pass
 hiddenimports += collect_submodules("uvicorn")
 
-# The SDK bundles Anthropic's proprietary Claude Code CLI (_bundled/claude.exe ~235MB).
-# We DO NOT redistribute it by default — it is not ours to ship, and this repo is MIT.
-# Public build: leave it out; the user brings their own Claude (ANTHROPIC_API_KEY or Claude Code login).
-# Personal all-in-one build only: set BUNDLE_CLAUDE=1 to include your own CLI (do not publish that .exe).
-if os.environ.get("BUNDLE_CLAUDE") == "1":
-    # Personal, machine-local build only. Adds each file individually (a directory tuple is not
-    # reliably expanded by PyInstaller). NEVER publish an .exe produced this way.
-    try:
-        import claude_agent_sdk
-        _sdk_bundled = os.path.join(os.path.dirname(claude_agent_sdk.__file__), "_bundled")
-        for _f in os.listdir(_sdk_bundled):
-            _fp = os.path.join(_sdk_bundled, _f)
-            if os.path.isfile(_fp):
-                datas.append((_fp, os.path.join("claude_agent_sdk", "_bundled")))
-    except Exception:
-        pass
+# NOTE: Anthropic's proprietary Claude Code CLI (claude_agent_sdk/_bundled/claude.exe) is
+# intentionally NOT bundled — it is not ours to ship. This .exe requires Claude to be present at
+# runtime (an ANTHROPIC_API_KEY, or the Claude Code CLI on PATH). For most use, run from source /
+# the app launcher instead. collect_all above deliberately does not pull the bundled CLI binary.
 
 # Bundle the read-only assets the app seeds into the data home on first run.
 for sub in ("templates", "agents", "knowledge"):
