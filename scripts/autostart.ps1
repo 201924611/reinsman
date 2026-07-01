@@ -1,36 +1,36 @@
-# Register (or remove) agent-core to auto-start at Windows logon.
+# Auto-start agent-core at Windows logon — no admin required (uses the Startup folder).
 # Install:   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\autostart.ps1 -Install
 # Remove:    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\autostart.ps1 -Uninstall
-# Creates a hidden logon task that runs run_server.ps1 (watchdog: restarts the server if it exits).
+# Drops a hidden launcher in the user's Startup folder that runs run_server.ps1
+# (watchdog: restarts the server if it exits). Runs only for the current user.
 param(
     [switch]$Install,
-    [switch]$Uninstall,
-    [string]$TaskName = "AgentCore"
+    [switch]$Uninstall
 )
 
-$repo = Split-Path $PSScriptRoot -Parent   # scripts/ lives under the repo root
+$repo    = Split-Path $PSScriptRoot -Parent          # scripts/ lives under the repo root
+$startup = [Environment]::GetFolderPath('Startup')
+$vbs     = Join-Path $startup "AgentCore.vbs"
 
 if ($Uninstall) {
-    try { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false; Write-Host "[agent-core] autostart removed ($TaskName)." }
-    catch { Write-Host "[agent-core] no task named $TaskName." }
+    if (Test-Path $vbs) { Remove-Item $vbs -Force; Write-Host "[agent-core] autostart removed: $vbs" }
+    else { Write-Host "[agent-core] no autostart entry found." }
     return
 }
 
 if (-not $Install) {
-    Write-Host "Usage: autostart.ps1 -Install | -Uninstall  [-TaskName <name>]"
+    Write-Host "Usage: autostart.ps1 -Install | -Uninstall"
     return
 }
 
 $runner = Join-Path $repo "run_server.ps1"
 if (-not (Test-Path $runner)) { Write-Error "run_server.ps1 not found at $runner"; return }
 
-$action  = New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$runner`""
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-    -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
-    -Description "agent-core server — auto-start at logon" -Force | Out-Null
-Write-Host "[agent-core] autostart installed ($TaskName). It will launch run_server.ps1 at next logon."
-Write-Host "[agent-core] to start now:  powershell -File `"$runner`"    |  to remove:  autostart.ps1 -Uninstall"
+# A .vbs launcher runs PowerShell with no visible window (unlike a .cmd, which flashes).
+$vbsBody = @"
+Set sh = CreateObject("WScript.Shell")
+sh.Run "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""$runner""", 0, False
+"@
+Set-Content -Path $vbs -Value $vbsBody -Encoding ASCII
+Write-Host "[agent-core] autostart installed: $vbs"
+Write-Host "[agent-core] launches run_server.ps1 hidden at each logon. Start now:  powershell -File `"$runner`""
