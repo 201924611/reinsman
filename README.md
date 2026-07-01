@@ -35,20 +35,25 @@ pip install -r requirements.txt
 cp .env.example .env        # then edit (see below)
 python -m agent_core        # serves on 127.0.0.1:8848
 ```
+Then open **http://127.0.0.1:8848** in your browser — a built-in chat UI is served there,
+so you can talk to the agent immediately (no extra setup).
+
 Authentication: either set `ANTHROPIC_API_KEY` in `.env`, or log in with the Claude
 Code CLI (leave the key blank and the SDK follows the CLI session).
 
-Submit a goal:
+Prefer the API? Submit a goal directly:
 ```bash
 curl -s http://127.0.0.1:8848/goal \
   -H 'content-type: application/json' \
   -d '{"goal": "create hello.txt in workspace with hi"}'
 ```
 
-## Channels (chat front)
-Drive the orchestrator from a messenger instead of raw HTTP. The Telegram bridge
-reuses an existing chat app as the UI — no custom frontend needed, and conversations
-resume across devices.
+## Chat UI & channels
+The **built-in web chat** (served at `/`) is the zero-setup way to use the harness —
+just run the server and open the browser. It posts to `/goal` and streams live progress.
+
+For remote/mobile use, an optional **Telegram bridge** reuses an existing chat app as the
+UI (no custom frontend, conversations resume across devices):
 ```bash
 # .env: TELEGRAM_BOT_TOKEN=...  TELEGRAM_ALLOWED_CHAT_IDS=<your chat id>
 python -m agent_core.channels.telegram_bridge            # live

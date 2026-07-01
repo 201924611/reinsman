@@ -1,13 +1,14 @@
 """HTTP API server — always-on, forwarding commands (goals) to the central agent.
 
 Endpoints:
+  GET  /                                   -> built-in web chat UI
   POST /goal          {"goal": "..."}      -> accept a goal, return task_id (runs in background)
   GET  /tasks                              -> list all tasks
   GET  /tasks/{id}                         -> a specific task's details + progress events
   POST /tasks/{id}/cancel                  -> cancel a running task
   GET  /health                             -> health check
 
-Run: python server.py   (or run.ps1)
+Run: python -m agent_core   (or run.ps1)
 """
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ from agent_core.prompts.agent_loader import list_agents, load_agent
 from agent_core.applog import get_logger
 from agent_core.prompts.template_engine import list_templates, load_template
 from agent_core.runtime.orchestrator import run_goal
+from agent_core.runtime.webui import CHAT_HTML
 from agent_core.storage.task_store import store
 
 logger = get_logger()
@@ -86,6 +88,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Agent Core", version="1.0.0", lifespan=lifespan)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def chat_ui():
+    """Built-in web chat UI — open http://127.0.0.1:8848 to talk to the agent."""
+    return CHAT_HTML
 
 
 async def _execute(task_id: str, goal: str, resume_session: str | None = None,
