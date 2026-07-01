@@ -58,12 +58,15 @@ pip install pywebview          # for the native window
 python -m agent_core.app       # opens the app window (falls back to browser if pywebview is missing)
 ```
 
-**Single .exe (no Python needed)** — package the native-window app into one double-click executable:
+**Single .exe** — package the native-window app into one executable:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_exe.ps1   # -> dist\agent-core.exe
 ```
-The bundle is large (claude-agent-sdk ships its own CLI). On first run the .exe seeds `~/.agent-core`
-(templates / agents / knowledge / `.env`); authenticate once there.
+This build **does not include Claude** — Claude Code is Anthropic's proprietary software and is not
+redistributed here. The `.exe` still needs Claude present (an `ANTHROPIC_API_KEY`, or the Claude Code
+CLI installed on the machine). On first run it seeds `~/.agent-core` (templates / agents / knowledge / `.env`).
+For a **personal, machine-local** all-in-one that embeds your own CLI, set `BUNDLE_CLAUDE=1` before building
+— but do not publish or share that `.exe` (it would redistribute Anthropic's software).
 
 **Tray launcher** — instead of a window, keep it in the tray (Open / Restart / Quit):
 ```bash
@@ -120,5 +123,12 @@ channel or desktop control, restrict senders (`TELEGRAM_ALLOWED_CHAT_IDS`), keep
 `PERMISSION_MODE` appropriate, and **never commit secrets or personal data** — see
 [SECURITY.md](SECURITY.md). All secrets live in `.env` (git-ignored).
 
+## Requirements & third-party notice
+This is a **harness only**. It requires access to **Claude** to do anything — provide an
+`ANTHROPIC_API_KEY`, or sign in with the Claude Code CLI. **Claude Code is Anthropic's proprietary
+software and is not included or redistributed by this project**; each user brings their own access,
+subject to Anthropic's terms. The prompt templates cite their public sources (see `templates/README.md`).
+
 ## License
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The MIT license covers this repository's own code only, not Claude
+or any third-party software you install to run it.
