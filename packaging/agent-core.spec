@@ -23,11 +23,15 @@ hiddenimports += collect_submodules("uvicorn")
 # Public build: leave it out; the user brings their own Claude (ANTHROPIC_API_KEY or Claude Code login).
 # Personal all-in-one build only: set BUNDLE_CLAUDE=1 to include your own CLI (do not publish that .exe).
 if os.environ.get("BUNDLE_CLAUDE") == "1":
+    # Personal, machine-local build only. Adds each file individually (a directory tuple is not
+    # reliably expanded by PyInstaller). NEVER publish an .exe produced this way.
     try:
         import claude_agent_sdk
         _sdk_bundled = os.path.join(os.path.dirname(claude_agent_sdk.__file__), "_bundled")
-        if os.path.isdir(_sdk_bundled):
-            datas.append((_sdk_bundled, os.path.join("claude_agent_sdk", "_bundled")))
+        for _f in os.listdir(_sdk_bundled):
+            _fp = os.path.join(_sdk_bundled, _f)
+            if os.path.isfile(_fp):
+                datas.append((_fp, os.path.join("claude_agent_sdk", "_bundled")))
     except Exception:
         pass
 
