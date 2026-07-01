@@ -1,5 +1,5 @@
-// 화면 스크린샷 도구 — 단일 SPA의 랜딩 + 각 탭/뷰를 캡처한다.
-// 사용: node shoot.mjs <baseURL> <outDir> <label>
+// Screen screenshot tool — captures the landing page plus each tab/view of a single SPA.
+// Usage: node shoot.mjs <baseURL> <outDir> <label>
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
@@ -10,7 +10,7 @@ if (!baseURL || !outDir || !label) {
 }
 fs.mkdirSync(outDir, { recursive: true });
 
-// 탭/사이드바 항목 후보 라벨 (이전·새 구조 공통적으로 시도)
+// Candidate tab/sidebar item labels (tried across both the old and new layouts)
 const TABS = ['대시보드', '소득', '경비', '세금', '데이터', '설정'];
 
 const browser = await chromium.launch();
@@ -24,9 +24,9 @@ async function shot(name) {
 
 try {
   await page.goto(baseURL, { waitUntil: 'networkidle', timeout: 30000 });
-} catch { /* networkidle 실패해도 계속 */ }
+} catch { /* keep going even if networkidle fails */ }
 await page.waitForTimeout(1800);
-// 첫 진입 모달(면책 동의 등) 있으면 닫기 시도
+// If a first-entry modal (disclaimer consent, etc.) appears, try to close it
 for (const t of ['동의', '확인', '시작', '닫기', 'Accept', 'OK']) {
   try {
     const b = page.locator(`button:has-text("${t}")`).first();

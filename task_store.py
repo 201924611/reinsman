@@ -1,8 +1,8 @@
-"""작업(목적) 상태 저장소.
+"""Task (goal) state store.
 
-중앙 에이전트가 받는 각 '목적'을 하나의 Task로 추적한다.
-24h 구동 중 서버가 재시작돼도 상태가 남도록 JSON 파일에 영속화한다.
-스레드/코루틴 동시 접근을 막기 위해 Lock으로 보호한다.
+Tracks each 'goal' the central agent receives as a single Task.
+Persists state to a JSON file so it survives server restarts during 24h operation.
+Guarded by a Lock to prevent concurrent thread/coroutine access.
 """
 from __future__ import annotations
 
@@ -23,15 +23,15 @@ def _now() -> str:
 @dataclass
 class Task:
     id: str
-    goal: str                       # 사용자가 준 목적
+    goal: str                       # The goal given by the user
     status: str = "queued"          # queued | running | done | incomplete | error | cancelled
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
-    result: str | None = None       # 최종 결과 요약
+    result: str | None = None       # Final result summary
     error: str | None = None
-    session_id: str | None = None   # SDK 세션 ID (이어하기 resume 용)
-    num_turns: int | None = None    # 마지막 실행에서 소비한 턴 수
-    events: list[dict[str, Any]] = field(default_factory=list)  # 진행 로그(서브에이전트 호출 등)
+    session_id: str | None = None   # SDK session ID (used for resuming)
+    num_turns: int | None = None    # Turns consumed in the last run
+    events: list[dict[str, Any]] = field(default_factory=list)  # Progress log (subagent calls, etc.)
 
     def log(self, kind: str, message: str, **extra: Any) -> None:
         self.events.append({"ts": _now(), "kind": kind, "message": message, **extra})
@@ -52,7 +52,7 @@ class TaskStore:
                 for tid, d in raw.items():
                     self._tasks[tid] = Task(**d)
             except Exception:
-                # 손상된 상태 파일은 무시하고 새로 시작
+                # Ignore a corrupted state file and start fresh
                 self._tasks = {}
 
     def _flush(self) -> None:
@@ -94,10 +94,10 @@ class TaskStore:
                 return
             t.log(kind, message, **extra)
             self._flush()
-        # 락 밖에서 로그 파일에도 남긴다 (오케스트레이션 동작 기록)
+        # Also write to the log file outside the lock (records orchestration activity)
         from applog import log_event
         log_event(task_id, kind, message)
 
 
-# 전역 단일 인스턴스
+# Global singleton instance
 store = TaskStore()

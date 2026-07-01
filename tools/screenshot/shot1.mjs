@@ -1,5 +1,5 @@
-// 단일 스크린샷 — 라운드별 진행 기록용. 랜딩 화면 1장만 전체페이지 캡처.
-// 사용: node shot1.mjs <url> <outDir> <label>
+// Single screenshot — for recording per-round progress. Captures just one full-page shot of the landing screen.
+// Usage: node shot1.mjs <url> <outDir> <label>
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
@@ -11,9 +11,9 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 try {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 25000 });
-} catch { /* 계속 */ }
+} catch { /* keep going */ }
 await page.waitForTimeout(1500);
-// 첫 진입 모달 닫기 시도
+// Try to close the first-entry modal
 for (const t of ['동의', '확인', '시작', '닫기', 'Accept', 'OK']) {
   try {
     const b = page.locator(`button:has-text("${t}")`).first();

@@ -1,5 +1,5 @@
-# agent-core 서버 런처 (전체경로 python + Node/Java PATH + 워치독 루프).
-# 사용: powershell -NoProfile -ExecutionPolicy Bypass -File run_server.ps1
+# agent-core server launcher (full-path python + Node/Java on PATH + watchdog loop).
+# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File run_server.ps1
 $dir = "C:\Users\offic\Desktop\claude\agent-core"
 $py  = "C:\Users\offic\AppData\Local\Programs\Python\Python312\python.exe"
 $jbr = "C:\Program Files\JetBrains\IntelliJ IDEA 2026.1.2\jbr\bin"

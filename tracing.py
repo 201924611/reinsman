@@ -1,11 +1,11 @@
-"""실행 추적(trace) — 토큰 사용량 · 도구 호출 체인 · 세션별 그룹핑.
+"""Execution tracing — token usage · tool-call chains · grouping by session.
 
-각 task는 하나의 Trace를 가지며 그 안에 여러 Span(에이전트 1회 실행)이 있다.
-- 오케스트레이터 span(들) + 서브에이전트 span N개. parent/session_id로 그룹핑된다.
-- 각 span: role/kind/model/template, 토큰(in·out·cache), cost, turns, duration, 도구호출 목록.
+Each task has a single Trace containing multiple Spans (one agent run each).
+- The orchestrator span(s) plus N subagent spans, grouped by parent/session_id.
+- Each span: role/kind/model/template, tokens (in·out·cache), cost, turns, duration, list of tool calls.
 
-traces/<task_id>.json 에 저장 → /trace 엔드포인트와 HTML 뷰어가 읽는다.
-추적은 실패해도 본 작업을 막지 않도록 모든 기록은 호출부에서 try로 감싼다.
+Saved to traces/<task_id>.json, read by the /trace endpoint and the HTML viewer.
+So tracing never blocks the actual work on failure, every write is wrapped in a try at the call site.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _now() -> str:
 
 
 def _brief(name: str, inp: dict) -> str:
-    """도구 입력을 짧은 한 줄로 요약."""
+    """Summarize a tool's input into a short one-liner."""
     try:
         if name.endswith("spawn_agent"):
             return f"role={inp.get('role','')} / template={inp.get('template','')}"
@@ -55,11 +55,11 @@ class ToolCall:
 @dataclass
 class Span:
     span_id: str
-    role: str                      # "orchestrator" | 서브에이전트 role
+    role: str                      # "orchestrator" | subagent role
     kind: str                      # "orchestrator" | "subagent"
     model: str | None = None
     template: str | None = None
-    parent: str | None = None      # 부모 span_id
+    parent: str | None = None      # parent span_id
     session_id: str | None = None
     started_at: str = field(default_factory=_now)
     ended_at: str | None = None
@@ -78,13 +78,13 @@ class Span:
 class Trace:
     task_id: str
     goal: str = ""
-    variant: str = "default"       # 구조/실험 라벨 (A/B 비교용)
+    variant: str = "default"       # structure/experiment label (for A/B comparison)
     created_at: str = field(default_factory=_now)
     spans: list[dict] = field(default_factory=list)
 
 
 def _extract_tokens(usage: dict | None) -> dict[str, int]:
-    """SDK usage dict에서 토큰 4종을 방어적으로 추출."""
+    """Defensively extract the four token counts from an SDK usage dict."""
     u = usage or {}
     def g(*keys):
         for k in keys:
@@ -119,7 +119,7 @@ class TraceStore:
         with self._lock:
             if task_id in self._traces:
                 return
-            # 서버 재시작/이어하기 시 기존 trace 파일이 있으면 이어서 쓴다(덮어쓰기 방지).
+            # On server restart/resume, if a trace file already exists, append to it (avoid overwriting).
             p = self._path(task_id)
             if p.exists():
                 try:
@@ -187,7 +187,7 @@ class TraceStore:
             })
             self._flush(task_id)
 
-    # ---- 조회/집계 ----
+    # ---- query / aggregation ----
     def get(self, task_id: str) -> dict | None:
         p = self._path(task_id)
         if not p.exists():
@@ -202,7 +202,7 @@ class TraceStore:
 
     @staticmethod
     def totals(trace: dict) -> dict[str, Any]:
-        """trace 전체 토큰/도구/세션 집계 (멀티 그룹핑 요약)."""
+        """Aggregate tokens/tools/sessions across the whole trace (multi-group summary)."""
         spans = trace.get("spans", [])
         sessions = {s.get("session_id") for s in spans if s.get("session_id")}
         cost_vals = [s.get("cost_usd") for s in spans if s.get("cost_usd")]

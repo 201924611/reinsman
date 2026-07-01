@@ -1,10 +1,10 @@
-// 5장 스크린샷 캡처 — v4.2 시각 회귀 검증
-// 사용: node capture5.mjs <outDir>
+// Capture 5 screenshots — v4.2 visual regression check
+// Usage: node capture5.mjs <outDir>
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 
 const BASE = 'http://localhost:4173';
-const DISC_KEY = 'ftapp_v1_disclaimer_ok';   // constants.js에서 확인
+const DISC_KEY = 'ftapp_v1_disclaimer_ok';   // see constants.js
 const outDir = process.argv[2] || '.';
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -12,11 +12,11 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.setViewportSize({ width: 1440, height: 900 });
 
-// localStorage를 빈 상태(incomes=[], expenses=[])로 세팅하되 모달은 동의 처리
+// Set localStorage to an empty state (incomes=[], expenses=[]) but mark the modal as accepted
 async function resetStorageWithDisclaimer() {
   await page.evaluate((dk) => {
     localStorage.clear();
-    // 면책 모달은 동의 완료로 처리해 화면을 가리지 않게
+    // Mark the disclaimer modal as accepted so it does not cover the screen
     localStorage.setItem(dk, '1');
   }, DISC_KEY);
 }
@@ -31,8 +31,8 @@ async function fullshot(filename) {
   console.log('captured (full):', filename);
 }
 
-// ── Shot 1: Dashboard 초기 (상단) — 3단 sticky 스택 확인 ──
-console.log('Shot 1: Dashboard 초기...');
+// ── Shot 1: Dashboard initial (top) — verify 3-tier sticky stack ──
+console.log('Shot 1: Dashboard initial...');
 await page.goto(BASE, { waitUntil: 'networkidle', timeout: 20000 });
 await resetStorageWithDisclaimer();
 await page.reload({ waitUntil: 'networkidle', timeout: 20000 });
@@ -40,21 +40,21 @@ await page.waitForTimeout(1000);
 await page.evaluate(() => window.scrollTo(0, 0));
 await shot('shot1_dashboard_top.png');
 
-// ── Shot 2: Dashboard 스크롤 — 3단 헤더 고정 확인 ──
-console.log('Shot 2: Dashboard 스크롤...');
+// ── Shot 2: Dashboard scrolled — verify 3-tier header stays pinned ──
+console.log('Shot 2: Dashboard scrolled...');
 await page.evaluate(() => window.scrollTo(0, 500));
 await page.waitForTimeout(400);
 await shot('shot2_dashboard_scrolled.png');
 
-// ── Shot 3: Dashboard "다음 할 일" 가이드 카드 ──
-// incomes=[], expenses=[] → 수입 카드 1개만 표시
-console.log('Shot 3: 다음 할 일 가이드 카드...');
+// ── Shot 3: Dashboard "next steps" guide card ──
+// incomes=[], expenses=[] → only a single income card is shown
+console.log('Shot 3: next-steps guide card...');
 await page.evaluate(() => window.scrollTo(0, 0));
 await page.waitForTimeout(300);
 await fullshot('shot3_dashboard_guide_fullpage.png');
 
-// ── Shot 4: Income 스텝 ──
-console.log('Shot 4: Income 스텝...');
+// ── Shot 4: Income step ──
+console.log('Shot 4: Income step...');
 await page.evaluate(() => window.scrollTo(0, 0));
 let clicked = false;
 for (const sel of [
@@ -72,15 +72,15 @@ for (const sel of [
   } catch {}
 }
 if (!clicked) {
-  // fallback: StepRail nav의 두 번째 버튼
+  // fallback: the second button in the StepRail nav
   try { await page.locator('nav button').nth(1).click(); } catch {}
 }
 await page.waitForTimeout(700);
 await page.evaluate(() => window.scrollTo(0, 0));
 await shot('shot4_income_step.png');
 
-// ── Shot 5: TaxSim 스텝 ──
-console.log('Shot 5: TaxSim 스텝...');
+// ── Shot 5: TaxSim step ──
+console.log('Shot 5: TaxSim step...');
 await page.evaluate(() => window.scrollTo(0, 0));
 let clicked2 = false;
 for (const sel of [
@@ -98,7 +98,7 @@ for (const sel of [
   } catch {}
 }
 if (!clicked2) {
-  // fallback: StepRail의 네 번째 버튼
+  // fallback: the fourth button in the StepRail
   try { await page.locator('nav button').nth(3).click(); } catch {}
 }
 await page.waitForTimeout(700);
@@ -106,4 +106,4 @@ await page.evaluate(() => window.scrollTo(0, 0));
 await shot('shot5_taxsim_step.png');
 
 await browser.close();
-console.log('\n5장 캡처 완료!');
+console.log('\nCaptured 5 shots!');

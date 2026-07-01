@@ -1,11 +1,12 @@
-"""주기 루틴 레지스트리 — 메인 오케스트레이터가 주기적으로 '하는 일' 목록.
+"""Periodic routine registry — the list of things the main orchestrator does on a schedule.
 
-설계: agent-core에선 goal 1개 = 독립 오케스트레이터 1개 + 그 하위 트리.
-따라서 "주기마다 작업별로 에이전트를 하나 만들어 계획을 넘기고, 그 에이전트가
-서브에이전트를 생성하며 실행"하는 구조는 = "루틴(=계획) 목록을 만들고, 주기마다
-각 루틴을 goal로 제출"하면 그대로 구현된다. 메인은 얇은 디스패처(스케줄러)로만 존재.
+Design: in agent-core, one goal = one independent orchestrator + its subtree.
+So the pattern of "on each cycle, spin up an agent per task, hand it a plan, and let
+that agent create and run subagents" is implemented directly by "maintaining a list of
+routines (= plans) and submitting each one as a goal on every cycle." The main process
+exists only as a thin dispatcher (scheduler).
 
-state/routines.json 에 영속화.
+Persisted to state/routines.json.
 """
 from __future__ import annotations
 
@@ -30,11 +31,11 @@ def _iso(dt: datetime) -> str:
 class Routine:
     id: str
     name: str
-    prompt: str                       # 에이전트에게 넘길 계획(=goal)
-    interval_hours: float = 24.0      # 주기(시간). 기본 24h
+    prompt: str                       # Plan to hand to the agent (= goal)
+    interval_hours: float = 24.0      # Cycle length (hours). Default 24h
     enabled: bool = True
     created_at: str = field(default_factory=lambda: _iso(_now()))
-    next_run: str | None = None       # 다음 실행 예정(ISO)
+    next_run: str | None = None       # Next scheduled run (ISO)
     last_run: str | None = None
     runs: int = 0
     last_task_id: str | None = None
@@ -109,9 +110,9 @@ class RoutineStore:
             self._flush()
             return r
 
-    # ---- 스케줄 ----
+    # ---- Scheduling ----
     def due(self, now: datetime | None = None) -> list[Routine]:
-        """지금 실행해야 할(활성 + next_run 도래) 루틴들."""
+        """Routines that should run now (enabled + next_run has arrived)."""
         now = now or _now()
         out = []
         with self._lock:
@@ -126,7 +127,7 @@ class RoutineStore:
         return out
 
     def mark_ran(self, rid: str, task_id: str, now: datetime | None = None) -> None:
-        """실행을 제출한 직후 호출 — last_run 갱신 + 다음 주기로 next_run 이동(중복발사 방지)."""
+        """Call right after submitting a run — updates last_run and advances next_run to the next cycle (prevents duplicate firing)."""
         now = now or _now()
         with self._lock:
             r = self._items.get(rid)
@@ -139,4 +140,5 @@ class RoutineStore:
             self._flush()
 
 
+# Global singleton instance
 store = RoutineStore()

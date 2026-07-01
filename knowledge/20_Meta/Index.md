@@ -1,3 +1,3 @@
 # Knowledge Index
 
-_(빈 스캐폴드 — save_knowledge가 자동 채움)_
+_(Empty scaffold — populated automatically by save_knowledge)_

@@ -1,37 +1,37 @@
-# 비밀/인증 — 절대 커밋 금지
+# Secrets/credentials — never commit
 .env
 
-# 런타임 생성물 (config.py가 자동 생성) — 주석은 반드시 별도 줄(인라인 주석 금지)
+# Runtime-generated files (auto-created by config.py) — comments must be on their own line (no inline comments)
 state/
 logs/
-# 서브에이전트 종료 시 자동 삭제되는 임시 md
+# Temporary md auto-deleted when a sub-agent exits
 runtime_agents/
-# 실행 추적(토큰·도구체인) JSON
+# Execution trace (tokens, tool chain) JSON
 traces/
-# 자동 채점 결과 JSON
+# Auto-grading result JSON
 evals/
-# build_loop 라운드별 스크린샷
+# Per-round screenshots from build_loop
 round_shots/
-# 디자인 조사용 원본 사이트 스크래치(대용량 HTML/CSS)
+# Raw site scratch for design research (large HTML/CSS)
 workspace/_measure/
-# 자기개선 제안·백업(런타임 — 적용된 결과는 orchestrator.md/templates에 반영되어 추적됨)
+# Self-improvement proposals/backups (runtime — applied results are reflected in orchestrator.md/templates and tracked)
 self_improve/
-# workspace/ 는 산출물 공유를 위해 추적함 (다른 PC에서 이어가기). 비밀 적재 주의.
+# workspace/ is tracked to share artifacts (to continue on another PC). Be careful about staging secrets.
 
-# Node / Java 빌드 산출물 (거대 — 커밋 금지)
+# Node / Java build artifacts (huge — do not commit)
 node_modules/
 **/node_modules/
 **/target/
 **/.vite/
 
-# 파이썬
+# Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
 *.egg-info/
 
-# OS/에디터
+# OS/editor
 .DS_Store
 Thumbs.db
 .idea/

@@ -1,11 +1,14 @@
-"""영속 지식 저장소 (LLM-Wiki 스타일).
+"""Persistent knowledge store (LLM-Wiki style).
 
-서브에이전트가 수집/합성한 데이터를 구조화된 마크다운 위키로 영구 보관한다.
-runtime_agents/(임시·삭제)와 달리 이 저장소는 git으로 추적되어 유지된다.
+Permanently archives the data that subagents collect/synthesize as a structured
+markdown wiki. Unlike runtime_agents/ (temporary and deleted), this store is
+tracked in git and preserved.
 
-원형: 사용자 제공 'knowledge-policy' 템플릿을 agent-core에 맞게 단순·견고화한 것.
-(영감: Andrej Karpathy의 LLM-Wiki/'외부 뇌' 개념 + 강화학습식 보상 정책 아이디어.
- 여기서 'RL'은 학습된 모델이 아니라 피드백 로그 기반 경량 휴리스틱이다.)
+Origin: a simplified and hardened adaptation of the user-supplied 'knowledge-policy'
+template for agent-core.
+(Inspiration: Andrej Karpathy's LLM-Wiki / 'external brain' concept, plus
+ reinforcement-learning-style reward policy ideas. Here 'RL' is not a trained
+ model but a lightweight heuristic based on feedback logs.)
 """
 from __future__ import annotations
 
@@ -31,7 +34,7 @@ INDEX_PATH = META_DIR / "Index.md"
 POLICY_PATH = META_DIR / "Policy.md"
 
 STD_CATEGORIES = ["Projects", "Topics", "Decisions", "Skills"]
-REFACTOR_THRESHOLD = 12  # 한 폴더 문서 수가 이를 넘으면 세분화 제안
+REFACTOR_THRESHOLD = 12  # suggest splitting a folder once its document count exceeds this
 
 _lock = threading.Lock()
 
@@ -56,8 +59,8 @@ def _slug(title: str) -> str:
     return (s or "untitled")[:80]
 
 
-# 도메인 실행 노하우(how-to)는 Skills/ 아래로 강제하는 결정적 가드용 키워드.
-# 하위폴더명이 여기 들어가면 상위가 Skills가 아니어도 Skills로 교정한다.
+# Keywords for the deterministic guard that forces domain how-to knowledge under Skills/.
+# If a subfolder name appears here, it is corrected to Skills even when its parent is not Skills.
 DOMAIN_SKILL_SUBS = {
     "웹디자인", "웹프론트엔드", "웹백엔드", "웹아키텍처", "웹",
     "db", "디비", "데이터베이스", "데이터", "모바일", "디자인시스템",
@@ -66,7 +69,7 @@ DOMAIN_SKILL_SUBS = {
 
 
 def _find_subfolder(name: str) -> str | None:
-    """10_Wiki 안에 주어진 이름의 하위 폴더가 이미 있으면 그 상대경로를 반환(없으면 None)."""
+    """Return the relative path of a subfolder with the given name if one already exists under 10_Wiki (else None)."""
     if not WIKI_DIR.exists():
         return None
     for p in sorted(WIKI_DIR.rglob(name)):
@@ -76,27 +79,27 @@ def _find_subfolder(name: str) -> str | None:
 
 
 def _norm_category(category: str) -> str:
-    """카테고리를 10_Wiki 하위 상대경로로 정규화 + 결정적 가드(LLM 오분류 교정).
-    가드는 LLM 재량이 아니라 코드가 결정한다:
-      1) 도메인 how-to 키워드(DOMAIN_SKILL_SUBS)면 상위를 Skills/로 강제.
-      2) 같은 이름의 하위폴더가 이미 다른 위치에 있으면 그 기존 위치로 합친다
-         (Topics/웹프론트엔드 vs Skills/웹프론트엔드 분열 방지)."""
+    """Normalize a category into a relative path under 10_Wiki, plus a deterministic guard
+    that corrects LLM misclassification. The guard is decided by code, not LLM discretion:
+      1) If it is a domain how-to keyword (DOMAIN_SKILL_SUBS), force the parent to Skills/.
+      2) If a subfolder of the same name already exists elsewhere, merge into that existing
+         location (to avoid splits like Topics/웹프론트엔드 vs Skills/웹프론트엔드)."""
     c = (category or "Topics").strip().strip("/").replace("\\", "/")
     c = re.sub(r"^10_Wiki/", "", c)
     c = c or "Topics"
     parts = [p for p in c.split("/") if p]
     if len(parts) >= 2:
         top, sub, tail = parts[0], parts[1], parts[2:]
-        # 가드1: 도메인 실행 노하우 → Skills/ 강제
+        # Guard 1: domain how-to knowledge -> force under Skills/
         if sub.lower() in {s.lower() for s in DOMAIN_SKILL_SUBS} and top != "Skills":
             fixed = "/".join(["Skills", sub, *tail])
-            logger.info(f"[kb] category 정규화(도메인→Skills): {c} → {fixed}")
+            logger.info(f"[kb] category normalized (domain -> Skills): {c} -> {fixed}")
             return fixed
-        # 가드2: 같은 하위폴더가 이미 어딘가 있으면 그쪽으로 합침
+        # Guard 2: if the same subfolder already exists somewhere, merge into it
         existing = _find_subfolder(sub)
         if existing and existing != "/".join(parts[:2]):
             fixed = "/".join([existing, *tail])
-            logger.info(f"[kb] category 정규화(기존 폴더 우선): {c} → {fixed}")
+            logger.info(f"[kb] category normalized (prefer existing folder): {c} -> {fixed}")
             return fixed
     return c
 
@@ -119,7 +122,7 @@ def _update_graph(slug: str, title: str, category: str, related: list[str]) -> N
 
 
 def _rebuild_index() -> None:
-    lines = ["# 📇 Knowledge Index", "", f"_자동 생성: {_now_iso()}_", ""]
+    lines = ["# 📇 Knowledge Index", "", f"_Auto-generated: {_now_iso()}_", ""]
     dirs = sorted([p for p in WIKI_DIR.rglob("*") if p.is_dir()]) if WIKI_DIR.exists() else []
     has_any = False
     for cat_dir in dirs:
@@ -133,7 +136,7 @@ def _rebuild_index() -> None:
             lines.append(f"- [[10_Wiki/{rel}/{m.stem}]]")
         lines.append("")
     if not has_any:
-        lines.append("_아직 저장된 지식이 없습니다._")
+        lines.append("_No knowledge has been saved yet._")
     INDEX_PATH.write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -150,7 +153,7 @@ def save_knowledge(
     confidence: float = 0.7,
     contradictions: str = "",
 ) -> dict:
-    """지식 한 건을 위키 규격으로 저장하고 Index/Graph를 갱신한다."""
+    """Save a single knowledge entry in wiki format and refresh the Index/Graph."""
     _ensure_dirs()
     with _lock:
         rel_cat = _norm_category(category)
@@ -162,7 +165,7 @@ def save_knowledge(
         tags = tags or []
         related = related or []
 
-        # 원본 보관 (Source of Truth)
+        # Archive the raw original (Source of Truth)
         raw_link = raw_source
         if raw_text:
             raw_day = RAW_DIR / _today()
@@ -171,7 +174,7 @@ def save_knowledge(
             raw_link = f"[[00_Raw/{_today()}/{slug}]]"
 
         fm_tags = "[" + ", ".join(tags) + "]"
-        related_links = ", ".join(f"[[{r}]]" for r in related) if related else "(없음)"
+        related_links = ", ".join(f"[[{r}]]" for r in related) if related else "(none)"
         doc = (
             f"---\n"
             f"id: {doc_id}\n"
@@ -182,13 +185,13 @@ def save_knowledge(
             f'github_commit: ""\n'
             f"---\n\n"
             f"# [[{title}]]\n\n"
-            f"## 📌 한 줄 통찰\n> {summary}\n\n"
-            f"## 📖 구조화된 지식\n{content}\n\n"
-            f"## ⚠️ 모순 및 업데이트\n{contradictions or '(없음)'}\n\n"
-            f"## 🔗 지식 연결\n"
+            f"## 📌 One-line Insight\n> {summary}\n\n"
+            f"## 📖 Structured Knowledge\n{content}\n\n"
+            f"## ⚠️ Contradictions & Updates\n{contradictions or '(none)'}\n\n"
+            f"## 🔗 Knowledge Links\n"
             f"- **Parent:** [[10_Wiki/{rel_cat}]]\n"
             f"- **Related:** {related_links}\n"
-            f"- **Raw Source:** {raw_link or '(없음)'}\n"
+            f"- **Raw Source:** {raw_link or '(none)'}\n"
         )
         path.write_text(doc, encoding="utf-8")
         _update_graph(slug, title, rel_cat, related)
@@ -198,9 +201,10 @@ def save_knowledge(
         suggestion = None
         if count > REFACTOR_THRESHOLD:
             suggestion = (
-                f"'{rel_cat}' 폴더 문서가 {count}개입니다. 하위 카테고리 세분화를 권장합니다."
+                f"The '{rel_cat}' folder now has {count} documents. "
+                f"Consider splitting it into sub-categories."
             )
-        logger.info(f"[kb] 저장: 10_Wiki/{rel_cat}/{slug}.md (related={len(related)})")
+        logger.info(f"[kb] saved: 10_Wiki/{rel_cat}/{slug}.md (related={len(related)})")
         return {
             "path": str(path.relative_to(config.ROOT)).replace("\\", "/"),
             "id": doc_id,
@@ -215,7 +219,7 @@ def list_entries() -> list[str]:
 
 
 def record_feedback(note: str) -> None:
-    """사용자 피드백을 Policy.md에 누적한다 (다음 분류 시 참고)."""
+    """Append user feedback to Policy.md (referenced during future classification)."""
     _ensure_dirs()
     with _lock:
         with POLICY_PATH.open("a", encoding="utf-8") as f:
@@ -223,17 +227,17 @@ def record_feedback(note: str) -> None:
 
 
 def git_sync(message: str) -> str:
-    """knowledge/ 변경을 git에 커밋(옵션). KB_GIT_SYNC=true 일 때만 동작."""
+    """Commit knowledge/ changes to git (optional). Only runs when KB_GIT_SYNC=true."""
     if not config.KB_GIT_SYNC:
-        return "git sync 비활성화 (KB_GIT_SYNC=false)"
+        return "git sync disabled (KB_GIT_SYNC=false)"
     try:
         run = lambda *a: subprocess.run(a, cwd=str(config.ROOT), check=True, capture_output=True)
         run("git", "add", "knowledge")
         run("git", "commit", "-m", f"[knowledge-policy] {message}")
         if config.KB_GIT_PUSH:
             run("git", "push", "origin", "main")
-        logger.info(f"[kb] git sync 완료: {message}")
-        return "git sync 완료"
+        logger.info(f"[kb] git sync complete: {message}")
+        return "git sync complete"
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"[kb] git sync 실패: {e}")
-        return f"git sync 실패: {e}"
+        logger.warning(f"[kb] git sync failed: {e}")
+        return f"git sync failed: {e}"

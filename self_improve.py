@@ -1,10 +1,13 @@
-"""자기개선 메타루프 — 에이전트가 자기 eval/trace를 읽고 '자기 프롬프트' 개선안을 제안한다.
+"""Self-improvement meta-loop — the agent reads its own evals/traces and proposes
+improvements to its own prompt.
 
-안전장치(중요):
-- propose(): 라이브 파일을 **절대 건드리지 않는다**. self_improve/<id>/ 에 후보(proposal)만 저장.
-- apply(): **명시적 호출 시에만** 라이브 파일을 바꾼다. 바꾸기 전 backups/ 에 현재본을 백업.
-- revert(): 최신 백업으로 즉시 롤백.
-- A/B: 라이브 변경 없이 overrides.system_prompt 로 현행 vs 후보를 비교(server에서).
+Safeguards (important):
+- propose(): **never touches** live files. Only saves a proposal to self_improve/<id>/.
+- apply(): changes live files **only when explicitly called**. Backs up the current
+  version to backups/ before changing.
+- revert(): rolls back to the latest backup immediately.
+- A/B: compares current vs candidate via overrides.system_prompt with no live changes
+  (handled in server).
 """
 from __future__ import annotations
 
@@ -34,7 +37,7 @@ def _stamp() -> str:
 
 
 def target_path(target: str) -> Path:
-    """개선 대상 파일 경로. 'orchestrator'면 agents/, 그 외엔 templates/<target>.md."""
+    """Path of the file to improve. 'orchestrator' -> agents/, otherwise templates/<target>.md."""
     if target == "orchestrator":
         return config.ROOT / "agents" / "orchestrator.md"
     return config.TEMPLATES_DIR / f"{target}.md"
@@ -53,28 +56,32 @@ def _recent_evals(n: int) -> list[dict]:
 
 
 _REFLECT_PROMPT = """\
-너는 자율 에이전트의 시스템 프롬프트를 개선하는 프롬프트 엔지니어다.
-아래 [현재 프롬프트]와 [최근 실행 평가 요약]을 보고, **반복되는 약점**을 진단해 프롬프트를 개선하라.
+You are a prompt engineer improving an autonomous agent's system prompt.
+Read the [Current Prompt] and [Recent Execution Eval Summary] below, diagnose the
+**recurring weaknesses**, and improve the prompt.
 
-규칙:
-- frontmatter(--- 사이)는 보존한다. name/model은 그대로, description만 필요시 다듬어라.
-- 기존 핵심 원칙·안전장치는 삭제하지 마라. 약점을 보완하는 '구체적이고 실행가능한' 지침을 추가/수정만.
-- 평가 근거에서 반복되는 비판(예: 효율 과소비, 조기종료, 구조 보존 편향, 검증 누락 등)을 **직접 겨냥**하라.
-- 분량을 과하게 늘리지 마라. 모호한 표현 금지. 한국어 유지.
+Rules:
+- Preserve the frontmatter (between the --- markers). Keep name/model unchanged; only
+  refine description if needed.
+- Do not delete existing core principles or safeguards. Only add/edit 'concrete and
+  actionable' guidance that addresses the weaknesses.
+- **Directly target** the criticisms that recur in the eval rationales (e.g. wasteful
+  efficiency, early termination, structure-preservation bias, missing verification).
+- Do not inflate the length excessively. No vague wording. Keep the original language.
 
-[대상] {target}
+[Target] {target}
 
-[현재 프롬프트]
+[Current Prompt]
 {current}
 
-[최근 실행 평가 요약 (eval judge 점수 + 근거)]
+[Recent Execution Eval Summary (eval judge scores + rationale)]
 {digest}
 
-아래 형식으로만 출력하라(다른 텍스트 절대 금지):
+Output only in the format below (absolutely no other text):
 <<<CHANGELOG>>>
-- (무엇을 왜 바꿨는지 3~6줄, 각 줄은 어떤 약점을 겨냥했는지 명시)
+- (3-6 lines on what changed and why; each line states which weakness it targets)
 <<<REVISED_PROMPT>>>
-(개선된 프롬프트 전문 — frontmatter 포함, 이 마커 사이 내용이 그대로 파일이 된다)
+(The full improved prompt — including frontmatter; the content between these markers becomes the file verbatim)
 <<<END>>>
 """
 
@@ -86,10 +93,10 @@ def _parse(text: str) -> tuple[str, str]:
 
 
 async def propose(target: str = "orchestrator", n: int = 8, model: str | None = None) -> dict:
-    """최근 eval을 분석해 대상 프롬프트의 개선안을 만든다. 라이브 파일은 안 건드린다."""
+    """Analyze recent evals to produce an improvement proposal for the target prompt. Does not touch live files."""
     path = target_path(target)
     if not path.exists():
-        return {"error": f"대상 파일 없음: {path}"}
+        return {"error": f"target file not found: {path}"}
     current = path.read_text(encoding="utf-8")
 
     evals = _recent_evals(n)
@@ -98,15 +105,15 @@ async def propose(target: str = "orchestrator", n: int = 8, model: str | None = 
         j = e.get("judge", {})
         t = e.get("totals", {})
         digest_lines.append(
-            f"- 『{(e.get('goal') or '')[:45]}』 종합 {j.get('overall')} "
-            f"(완료{j.get('completion')}/품질{j.get('quality')}/안전{j.get('safety')}/효율{j.get('efficiency')}) "
-            f"| 턴{t.get('num_turns')}·도구{t.get('tool_calls')} | {(j.get('rationale') or '')[:180]}"
+            f"- \"{(e.get('goal') or '')[:45]}\" overall {j.get('overall')} "
+            f"(completion {j.get('completion')}/quality {j.get('quality')}/safety {j.get('safety')}/efficiency {j.get('efficiency')}) "
+            f"| turns {t.get('num_turns')} · tools {t.get('tool_calls')} | {(j.get('rationale') or '')[:180]}"
         )
-    digest = "\n".join(digest_lines) or "(eval 데이터 없음 — 일반 원칙으로 개선)"
+    digest = "\n".join(digest_lines) or "(no eval data — improve using general principles)"
 
     prompt = _REFLECT_PROMPT.format(target=target, current=current, digest=digest)
     options = ClaudeAgentOptions(
-        system_prompt="너는 신중한 프롬프트 엔지니어다. 지정된 마커 형식만 출력한다.",
+        system_prompt="You are a careful prompt engineer. Output only the specified marker format.",
         model=model or config.AGENT_MODEL,
         permission_mode=config.PERMISSION_MODE,
         cwd=str(config.WORKSPACE_DIR),
@@ -121,19 +128,19 @@ async def propose(target: str = "orchestrator", n: int = 8, model: str | None = 
                     if isinstance(b, TextBlock):
                         chunks.append(b.text)
     except Exception as e:  # noqa: BLE001
-        return {"error": f"reflector 실패: {e}"}
+        return {"error": f"reflector failed: {e}"}
 
     changelog, revised = _parse("\n".join(chunks))
     if not revised:
-        return {"error": "개선안 파싱 실패(마커 없음)", "raw": "\n".join(chunks)[:600]}
+        return {"error": "failed to parse proposal (markers missing)", "raw": "\n".join(chunks)[:600]}
 
     pid = "si-" + uuid.uuid4().hex[:8]
     d = SI_DIR / pid
     d.mkdir(parents=True, exist_ok=True)
     (d / "proposal.md").write_text(revised, encoding="utf-8")
     (d / "analysis.md").write_text(
-        f"# 자기개선 제안 {pid}\n\n- target: {target}\n- 기반 eval 수: {len(evals)}\n- 생성: {_now()}\n\n"
-        f"## 변경 요약(changelog)\n{changelog}\n", encoding="utf-8")
+        f"# Self-Improvement Proposal {pid}\n\n- target: {target}\n- evals analyzed: {len(evals)}\n- created: {_now()}\n\n"
+        f"## Change Summary (changelog)\n{changelog}\n", encoding="utf-8")
     (d / "meta.json").write_text(json.dumps(
         {"id": pid, "target": target, "created": _now(), "n_evals": len(evals),
          "applied": False, "char_delta": len(revised) - len(current)},
@@ -172,11 +179,11 @@ def list_proposals() -> list[dict]:
 
 
 def apply(pid: str) -> dict:
-    """후보를 라이브 파일에 적용한다(사람 승인 게이트). 적용 전 자동 백업."""
+    """Apply the candidate to the live file (human approval gate). Auto-backup before applying."""
     d = SI_DIR / pid
     prop = d / "proposal.md"
     if not prop.exists():
-        return {"error": "없는 제안"}
+        return {"error": "unknown proposal"}
     meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
     target = meta["target"]
     path = target_path(target)
@@ -187,15 +194,15 @@ def apply(pid: str) -> dict:
     meta.update({"applied": True, "applied_at": _now(), "backup": backup.name})
     (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"applied": pid, "target": target, "backup": backup.name,
-            "note": "서버 재시작 후 적용됨(프롬프트는 _make_options에서 매 실행 로드되므로 즉시 반영)"}
+            "note": "Takes effect immediately (the prompt is loaded on every run in _make_options; no server restart needed)"}
 
 
 def revert(target: str = "orchestrator") -> dict:
-    """대상의 최신 백업으로 롤백."""
+    """Roll back to the target's latest backup."""
     backups = sorted(BACKUP_DIR.glob(f"{target}-*.md"),
                      key=lambda p: p.stat().st_mtime, reverse=True)
     if not backups:
-        return {"error": "백업 없음"}
+        return {"error": "no backup found"}
     latest = backups[0]
     target_path(target).write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
     return {"reverted": target, "from": latest.name}

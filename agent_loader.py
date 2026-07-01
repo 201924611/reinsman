@@ -1,18 +1,18 @@
-"""에이전트 정의 로더.
+"""Agent definition loader.
 
-agents/ 폴더의 *.md 파일을 읽어 에이전트 정의(AgentDef)로 변환한다.
-각 파일은 다음 형식이다:
+Reads *.md files from the agents/ folder and converts them into agent definitions (AgentDef).
+Each file has the following format:
 
     ---
     name: researcher
     description: ...
-    model: claude-sonnet-4-6      # (선택) 없으면 SUBAGENT_MODEL 사용
-    allowed_tools: a, b, c        # (선택) 쉼표 구분. 없으면 제한 안 함
+    model: claude-sonnet-4-6      # (optional) falls back to SUBAGENT_MODEL if absent
+    allowed_tools: a, b, c        # (optional) comma-separated. No restriction if absent
     ---
-    <본문 = 시스템 프롬프트>
+    <body = system prompt>
 
-이렇게 하면 코드를 고치지 않고 .md 파일만 추가/수정해서
-새 에이전트를 만들거나 기존 에이전트의 역할을 바꿀 수 있다.
+This way you can add/edit .md files to create new agents or change an existing
+agent's role without touching any code.
 """
 from __future__ import annotations
 
@@ -28,16 +28,16 @@ AGENTS_DIR = config.ROOT / "agents"
 class AgentDef:
     name: str
     description: str = ""
-    model: str | None = None              # None이면 호출부에서 기본 모델로 대체
-    allowed_tools: list[str] = field(default_factory=list)  # 비면 제한 안 함
+    model: str | None = None              # If None, the caller substitutes the default model
+    allowed_tools: list[str] = field(default_factory=list)  # No restriction if empty
     system_prompt: str = ""
 
 
 def _parse(text: str) -> tuple[dict[str, str], str]:
-    """frontmatter(dict)와 본문(str)을 분리한다. yaml 의존성 없는 최소 파서."""
+    """Split into frontmatter (dict) and body (str). Minimal parser with no yaml dependency."""
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
-        # frontmatter 없으면 전체를 본문으로 취급
+        # No frontmatter: treat the whole text as the body
         return {}, text.strip()
 
     meta: dict[str, str] = {}
@@ -53,7 +53,7 @@ def _parse(text: str) -> tuple[dict[str, str], str]:
 
 
 def load_agent_file(path: Path) -> AgentDef | None:
-    """주어진 경로의 .md 파일을 에이전트 정의로 읽는다. 없으면 None."""
+    """Read the .md file at the given path as an agent definition. Returns None if absent."""
     if not path.exists():
         return None
     meta, body = _parse(path.read_text(encoding="utf-8"))
@@ -75,12 +75,12 @@ def load_agent_file(path: Path) -> AgentDef | None:
 
 
 def load_agent(name: str) -> AgentDef | None:
-    """이름(agents/<name>.md)으로 에이전트 정의를 읽는다. 없으면 None."""
+    """Read an agent definition by name (agents/<name>.md). Returns None if absent."""
     return load_agent_file(AGENTS_DIR / f"{name}.md")
 
 
 def list_agents() -> list[str]:
-    """agents/ 폴더에 정의된 에이전트 이름 목록."""
+    """List of agent names defined in the agents/ folder."""
     if not AGENTS_DIR.exists():
         return []
     return sorted(p.stem for p in AGENTS_DIR.glob("*.md"))

@@ -1,9 +1,9 @@
-"""오케스트레이션 로깅.
+"""Orchestration logging.
 
-모든 오케스트레이션 동작(목적 수신/사고/하위에이전트 생성/결과/완료/에러)을
-로그 파일에 남긴다.
-- 중앙 로그: logs/orchestration.log (회전 로그, 모든 작업 통합)
-- 작업별 로그: logs/task-<task_id>.log (해당 목적 하나의 전체 흐름)
+Records every orchestration action (goal received / reasoning / subagent creation /
+result / completion / error) to log files.
+- Central log: logs/orchestration.log (rotating log, all tasks combined)
+- Per-task log: logs/task-<task_id>.log (the full flow of a single goal)
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def get_logger() -> logging.Logger:
 
 
 def log_event(task_id: str, kind: str, message: str) -> None:
-    """하나의 오케스트레이션 이벤트를 중앙 로그 + 작업별 로그에 기록한다."""
+    """Record a single orchestration event to the central log and the per-task log."""
     get_logger().info(f"[{task_id}] {kind}: {message}")
     try:
         ts = datetime.now(timezone.utc).isoformat()
@@ -51,5 +51,5 @@ def log_event(task_id: str, kind: str, message: str) -> None:
         with path.open("a", encoding="utf-8") as f:
             f.write(f"{ts} [{kind}] {message}\n")
     except Exception:
-        # 로깅 실패가 작업을 막아선 안 된다
+        # A logging failure must never block the task
         pass
