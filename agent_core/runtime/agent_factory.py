@@ -563,10 +563,10 @@ async def spawn_agent_tool(args: dict) -> dict:
 
 @tool(
     "build_loop",
-    "Perform a web/app/file build task as a 'plan→execute→evaluate' loop. "
+    "Run a 'plan→execute→evaluate' loop for any task worth iterating for quality — building web/apps/files, and also complex analysis, research, writing, or debugging. "
     "Dedicated planner→executor→evaluator agents communicate through main, iterating up to `rounds` times (default 5) to improve, "
-    "and terminate early once the evaluation passes. Use this for 'creating' work, not simple single tasks. "
-    "task: the build goal (what to make). rounds: max iterations (default 5). min_rounds: minimum forced iterations even on a pass (default 3, prevents premature termination). "
+    "and terminate early once the evaluation passes. Use this whenever the task is complex, hard, or high-stakes (not a simple single step); the file/web options below are optional and only apply to file/web outputs. "
+    "task: the goal (what to produce or solve). rounds: max iterations (default 5). min_rounds: minimum forced iterations even on a pass (default 3, prevents premature termination). "
     "snapshot_path: workspace-relative output path (e.g. 'myapp/frontend'). If given, snapshot each round and restore the 'highest-scoring' round (guards against a regressing final round). "
     "shot_dist: workspace-relative path to the 'built static folder' (e.g. 'myapp/frontend/dist'). If given, capture one screenshot into round_shots/ at the end of each round. "
     "replan: whether to feed each round's evaluation back to the planner to revise the plan (default true = evaluate→replan loop on; false = plan fixed once, only the executor gets feedback). "
