@@ -151,6 +151,20 @@ async def propose(target: str = "orchestrator", n: int = 8, model: str | None = 
             "char_delta": len(revised) - len(current), "live_file_changed": False}
 
 
+async def auto_cycle(target: str = "orchestrator", n: int = 8) -> dict:
+    """Unattended self-improvement: propose an improvement and apply it (auto-backup kept;
+    revert() undoes it). Intended to be triggered only from an opted-in routine, never by default."""
+    p = await propose(target=target, n=n)
+    if p.get("error") or not p.get("id"):
+        return {"ok": False, "step": "propose", **p}
+    a = apply(p["id"])
+    if a.get("error"):
+        return {"ok": False, "step": "apply", "proposal": p["id"], **a}
+    return {"ok": True, "proposal": p["id"], "target": target,
+            "changelog": p.get("changelog", ""), "backup": a.get("backup"),
+            "char_delta": p.get("char_delta")}
+
+
 def get_proposal(pid: str) -> dict | None:
     d = SI_DIR / pid
     if not (d / "proposal.md").exists():

@@ -13,6 +13,7 @@ Run: python -m agent_core   (or run.ps1)
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -57,17 +58,68 @@ class RoutineRequest(BaseModel):
     first_delay_hours: float | None = None  # delay before the first run (defaults to after one interval)
 
 
+# ── Autonomy opt-in (default OFF): scheduled routines fire only when the user turns this on ──
+_AUTONOMY_FILE = config.STATE_DIR / "autonomy.json"
+
+
+def _autonomy_enabled() -> bool:
+    try:
+        return bool(json.loads(_AUTONOMY_FILE.read_text(encoding="utf-8")).get("enabled", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _set_autonomy(enabled: bool) -> None:
+    _AUTONOMY_FILE.write_text(json.dumps({"enabled": bool(enabled)}), encoding="utf-8")
+
+
+# Ready-made routines the user can add with one click (values to drop into a routine).
+ROUTINE_PRESETS = [
+    {"name": "Self-directed work", "interval_hours": 24,
+     "prompt": ("Review the knowledge vault (Index), recent tasks, and eval history. Pick the single most "
+                "valuable next task that advances ongoing goals, and carry it out end to end (use build_loop "
+                "if it's complex). Save what you learn with save_knowledge. Keep it to one focused task."),
+     "description": "Every cycle, autonomously pick and do the most valuable task."},
+    {"name": "Self-improvement", "interval_hours": 168,
+     "prompt": "@self-improve",
+     "description": "Analyze recent evals and auto-apply a prompt improvement (backup kept; revert available)."},
+    {"name": "Knowledge digest", "interval_hours": 24,
+     "prompt": ("Summarize what changed in the knowledge vault and recent tasks since the last run into a short "
+                "digest, and save it with save_knowledge under Topics/Digest."),
+     "description": "A recurring digest of new knowledge and tasks."},
+]
+
+
+async def _run_self_improve(r) -> None:
+    """Handle an '@self-improve' routine by running the self-improvement cycle directly (not as a goal)."""
+    from agent_core.runtime import self_improve
+    routines.store.mark_ran(r.id, "self-improve")
+    try:
+        res = await self_improve.auto_cycle()
+        logger.info(f"[scheduler] self-improve routine '{r.name}': {res}")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[scheduler] self-improve routine failed: {e}")
+
+
+async def _fire_routine(r) -> str:
+    """Fire one routine. '@self-improve' runs the self-improve cycle; otherwise submit the prompt as a goal."""
+    if r.prompt.strip().lower().startswith("@self-improve"):
+        await _run_self_improve(r)
+        return "self-improve"
+    tid = _submit_goal(r.prompt, variant=f"routine:{r.name}", source=f"routine {r.id}({r.name})")
+    routines.store.mark_ran(r.id, tid)
+    logger.info(f"[scheduler] routine fired: {r.name} → task {tid} (next: {r.next_run})")
+    return tid
+
+
 async def _scheduler_loop():
-    """Periodic routine dispatcher — for each due routine, submit its goal (= spawn one dedicated agent).
-    Each goal runs as an independent orchestrator that spawns its own sub-agents to execute the plan."""
-    logger.info(f"[scheduler] started — checking routines every {SCHEDULER_CHECK_SECONDS}s")
+    """Periodic routine dispatcher — fires due routines ONLY when autonomy is enabled (opt-in, default off)."""
+    logger.info(f"[scheduler] started — checking every {SCHEDULER_CHECK_SECONDS}s (autonomy opt-in, default off)")
     while True:
         try:
-            for r in routines.store.due():
-                tid = _submit_goal(r.prompt, variant=f"routine:{r.name}",
-                                   source=f"routine {r.id}({r.name})")
-                routines.store.mark_ran(r.id, tid)
-                logger.info(f"[scheduler] routine fired: {r.name} → task {tid} (next: {r.next_run})")
+            if _autonomy_enabled():
+                for r in routines.store.due():
+                    await _fire_routine(r)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"[scheduler] loop error: {e}")
         await asyncio.sleep(SCHEDULER_CHECK_SECONDS)
@@ -449,12 +501,36 @@ async def si_ab(req: ABRequest):
 
 @app.get("/routines")
 async def list_routines():
-    """List of registered periodic routines (recurring 'tasks' that run every 24h) + next scheduled run."""
+    """List of registered periodic routines + next scheduled run + whether autonomy is on."""
     return {
+        "autonomy_enabled": _autonomy_enabled(),
         "scheduler_enabled": SCHEDULER_ENABLED,
         "check_seconds": SCHEDULER_CHECK_SECONDS,
         "routines": [r.__dict__ for r in routines.store.list()],
     }
+
+
+@app.get("/routines/presets")
+async def routine_presets():
+    """Ready-made routines the user can add with one click."""
+    return {"presets": ROUTINE_PRESETS}
+
+
+@app.get("/scheduler")
+async def scheduler_status():
+    return {"autonomy_enabled": _autonomy_enabled(),
+            "scheduler_enabled": SCHEDULER_ENABLED, "check_seconds": SCHEDULER_CHECK_SECONDS}
+
+
+class SchedulerToggle(BaseModel):
+    enabled: bool
+
+
+@app.post("/scheduler")
+async def set_scheduler(req: SchedulerToggle):
+    """Master opt-in switch: when true, the scheduler starts firing enabled routines."""
+    _set_autonomy(req.enabled)
+    return {"autonomy_enabled": _autonomy_enabled()}
 
 
 @app.post("/routines")
@@ -490,10 +566,8 @@ async def run_routine_now(rid: str):
     r = routines.store.get(rid)
     if not r:
         raise HTTPException(status_code=404, detail="unknown routine")
-    tid = _submit_goal(r.prompt, variant=f"routine:{r.name}",
-                       source=f"routine {r.id}({r.name}) manual run")
-    routines.store.mark_ran(r.id, tid)
-    return {"routine": rid, "task_id": tid, "next_run": routines.store.get(rid).next_run}
+    result = await _fire_routine(r)   # manual run works regardless of the autonomy switch
+    return {"routine": rid, "result": result, "next_run": routines.store.get(rid).next_run}
 
 
 @app.get("/health")

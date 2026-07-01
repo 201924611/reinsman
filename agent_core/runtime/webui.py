@@ -46,15 +46,43 @@ CHAT_HTML = """<!doctype html>
   textarea:focus{outline:none;border-color:var(--user)}
   button{background:var(--user);color:#fff;border:0;border-radius:10px;padding:0 16px;height:40px;font:inherit;font-weight:600;cursor:pointer}
   button:disabled{opacity:.5;cursor:default}
+  #routines input, #routines select{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
+  button.mini{height:32px;padding:0 12px;font-size:13px;font-weight:500;border-radius:8px}
+  .btn-sec{background:var(--bot);border:1px solid var(--border);color:var(--text)}
+  .rmeta{color:var(--muted);font-size:12px}
+  .ritem{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px}
+  .ritem.off{opacity:.5}
+  .ritem .rn{font-weight:500}
+  .ritem button{height:26px;padding:0 8px;font-size:12px;font-weight:500;border-radius:6px}
 </style>
 </head>
 <body>
 <header>
   <span class="dot"></span><h1>agent-core</h1>
   <span class="sub">throw it a goal — it runs autonomously</span>
+  <a href="#" id="routinesBtn">routines</a>
   <a href="/docs" target="_blank">API</a>
   <a href="/tasks" target="_blank">tasks</a>
 </header>
+<div id="routines" style="display:none;border-bottom:1px solid var(--border);padding:12px 16px;max-width:820px;width:100%;margin:0 auto">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <b>Autonomy</b>
+    <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px">
+      <input type="checkbox" id="autoSwitch"> run enabled routines on schedule
+    </label>
+    <span id="autoState" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+  </div>
+  <div id="rlist" style="display:flex;flex-direction:column;gap:6px"></div>
+  <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center">
+    <select id="rpreset"></select>
+    <button id="addPreset" class="mini btn-sec">Add preset</button>
+    <span class="rmeta">or</span>
+    <input type="text" id="rname" placeholder="name" style="width:120px">
+    <input type="text" id="rprompt" placeholder="prompt (goal)" style="flex:1;min-width:160px">
+    <input type="number" id="rint" value="24" title="interval hours" style="width:56px">
+    <button id="addCustom" class="mini btn-sec">Add</button>
+  </div>
+</div>
 <div id="log"><div class="empty">Send a goal to start. e.g. "create hello.txt in workspace with hi"</div></div>
 <footer>
   <div class="composer">
@@ -117,6 +145,58 @@ CHAT_HTML = """<!doctype html>
   input.addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
   sendBtn.addEventListener('click', send);
   input.focus();
+
+  // ---- routines panel (opt-in autonomy) ----
+  const rPanel = document.getElementById('routines');
+  const autoSwitch = document.getElementById('autoSwitch');
+  document.getElementById('routinesBtn').addEventListener('click', e => {
+    e.preventDefault();
+    rPanel.style.display = rPanel.style.display==='none' ? 'block' : 'none';
+    if(rPanel.style.display!=='none') loadRoutines();
+  });
+  autoSwitch.addEventListener('change', async () => {
+    await fetch('/scheduler', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({enabled:autoSwitch.checked})});
+    loadRoutines();
+  });
+  async function loadRoutines(){
+    let d; try{ d = await (await fetch('/routines')).json(); }catch(e){ return; }
+    autoSwitch.checked = !!d.autonomy_enabled;
+    document.getElementById('autoState').textContent = d.autonomy_enabled ? 'ON — enabled routines will fire on schedule' : 'OFF — nothing runs automatically';
+    document.getElementById('rlist').innerHTML = (d.routines||[]).map(r => {
+      const nr = r.next_run ? new Date(r.next_run).toLocaleString() : '—';
+      return '<div class="ritem'+(r.enabled?'':' off')+'">'
+        + '<span class="rn">'+esc(r.name)+'</span>'
+        + '<span class="rmeta">every '+r.interval_hours+'h · next '+esc(nr)+' · runs '+r.runs+'</span>'
+        + '<span style="margin-left:auto"></span>'
+        + '<button class="btn-sec" onclick="runRoutine(\''+r.id+'\')">Run now</button>'
+        + '<button class="btn-sec" onclick="toggleRoutine(\''+r.id+'\')">'+(r.enabled?'Disable':'Enable')+'</button>'
+        + '<button class="btn-sec" onclick="delRoutine(\''+r.id+'\')">✕</button>'
+        + '</div>';
+    }).join('') || '<span class="rmeta">No routines yet — add a preset below.</span>';
+  }
+  async function loadPresets(){
+    try{
+      const d = await (await fetch('/routines/presets')).json();
+      window._presets = d.presets || [];
+      document.getElementById('rpreset').innerHTML = window._presets.map((p,i) => '<option value="'+i+'">'+esc(p.name)+' — '+esc(p.description)+'</option>').join('');
+    }catch(e){}
+  }
+  document.getElementById('addPreset').addEventListener('click', async () => {
+    const p = (window._presets||[])[document.getElementById('rpreset').value]; if(!p) return;
+    await fetch('/routines', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({name:p.name, prompt:p.prompt, interval_hours:p.interval_hours})});
+    loadRoutines();
+  });
+  document.getElementById('addCustom').addEventListener('click', async () => {
+    const name=document.getElementById('rname').value.trim(), prompt=document.getElementById('rprompt').value.trim(), interval_hours=parseFloat(document.getElementById('rint').value)||24;
+    if(!name || !prompt) return;
+    await fetch('/routines', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({name, prompt, interval_hours})});
+    document.getElementById('rname').value=''; document.getElementById('rprompt').value='';
+    loadRoutines();
+  });
+  window.runRoutine = async id => { await fetch('/routines/'+id+'/run', {method:'POST'}); loadRoutines(); };
+  window.toggleRoutine = async id => { await fetch('/routines/'+id+'/toggle', {method:'POST'}); loadRoutines(); };
+  window.delRoutine = async id => { await fetch('/routines/'+id, {method:'DELETE'}); loadRoutines(); };
+  loadPresets();
 </script>
 </body>
 </html>
