@@ -22,6 +22,7 @@ from agent_core.observability import tracing
 
 from agent_core.runtime.agent_factory import (
     build_factory_server, build_knowledge_server, build_notion_server,
+    build_generated_server,
     current_task_id, current_orch_span, run_overrides,
 )
 from agent_core.prompts.agent_loader import load_agent
@@ -116,6 +117,9 @@ def _make_options(resume_session: str | None = None) -> ClaudeAgentOptions:
     notion = build_notion_server()
     if notion:
         servers["notion"] = notion
+    generated = build_generated_server()   # self-built tools (if any) — orchestrator reuses them too
+    if generated:
+        servers["generated"] = generated
     return ClaudeAgentOptions(
         system_prompt=system_prompt,
         model=model,

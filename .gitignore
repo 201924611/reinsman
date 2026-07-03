@@ -42,3 +42,7 @@ dist/
 Thumbs.db
 .idea/
 .vscode/
+
+# self-tooling: keep the folder, ignore agent-generated tools (runtime artifacts)
+tools/generated/*.py
+state/self_tooling.json

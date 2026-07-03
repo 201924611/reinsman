@@ -35,6 +35,7 @@ from claude_agent_sdk import (
 )
 
 from agent_core import config
+from agent_core.runtime import self_tooling
 
 from agent_core.observability import tracing
 
@@ -106,9 +107,12 @@ def _write_runtime_agent(agent_id: str, role: str, template_name: str,
 
 
 async def run_subagent(role: str, task: str, template: str = DEFAULT_TEMPLATE,
-                       context: str = "") -> str:
+                       context: str = "", model: str | None = None) -> str:
     """Generate a runtime md from a template, run the sub-agent, then delete
-    that md file on completion and return the final text result."""
+    that md file on completion and return the final text result.
+
+    model: model to use for this sub-agent only (e.g. 'claude-haiku-4-5'). When
+    given it takes precedence (offload cheap collection/grunt work to a smaller model)."""
     agent_id = "sub-" + uuid.uuid4().hex[:8]
     template = template or DEFAULT_TEMPLATE
     meta, filled = render(template, role, task, context)
@@ -117,7 +121,7 @@ async def run_subagent(role: str, task: str, template: str = DEFAULT_TEMPLATE,
 
     agent = load_agent_file(md_path)
     ov = run_overrides.get() or {}
-    sub_model = ov.get("subagent_model") or (agent.model if agent and agent.model else config.SUBAGENT_MODEL)
+    sub_model = model or ov.get("subagent_model") or (agent.model if agent and agent.model else config.SUBAGENT_MODEL)
     options = ClaudeAgentOptions(
         system_prompt=agent.system_prompt if agent else filled + _SUBAGENT_SUFFIX,
         model=sub_model,
@@ -656,12 +660,198 @@ async def spawn_parallel_tool(args: dict) -> dict:
     return {"content": [{"type": "text", "text": "\n\n".join(blocks)}]}
 
 
+@tool(
+    "run_isolated",
+    "Run several steps, each in a FRESH sub-agent, with the context isolated. Each step's "
+    "observations/tool-noise live and die inside that step and do not accumulate onto the next -> "
+    "avoids O(N^2) context blow-up, cost, and hitting the turn limit on long multi-step tasks. "
+    "Memory is carried forward via a structured state file: each step appends 'result / carry-over / "
+    "failure', and the next step's agent reads it first (only the summary crosses over, not raw history "
+    "= lossy but cheap). Use for long, mostly-independent sequential work (reading/collecting/processing "
+    "in chunks). For fully independent, parallelizable work use spawn_parallel; for one continuous chain "
+    "of reasoning use a single spawn_agent. "
+    "steps: JSON array; each item {\"role\":\"...\",\"task\":\"this step's work\",\"template\":\"(optional)\"}. "
+    "context: shared background for every step (optional). state_name: state-file name (optional). "
+    "model: worker model (optional, e.g. 'claude-haiku-4-5' to make collection cheap).",
+    {"steps": str, "context": str, "state_name": str, "model": str},
+)
+async def run_isolated_tool(args: dict) -> dict:
+    import uuid as _uuid
+    raw = str(args.get("steps", "")).strip()
+    try:
+        steps = json.loads(raw)
+        if not isinstance(steps, list) or not steps:
+            raise ValueError
+    except Exception:  # noqa: BLE001
+        return {"content": [{"type": "text",
+                "text": "Error: steps must be a non-empty JSON array, e.g. [{\"role\":\"...\",\"task\":\"...\"}]"}]}
+    steps = [it for it in steps[:20] if isinstance(it, dict)]
+    shared_ctx = str(args.get("context", ""))
+    worker_model = str(args.get("model", "")).strip() or None
+    name = str(args.get("state_name", "")).strip() or ("iso-" + _uuid.uuid4().hex[:8])
+
+    state_dir = config.STATE_DIR / "isolated"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_path = state_dir / f"{name}.md"
+    if not state_path.exists():
+        header = f"# Isolated run state — {name}\n"
+        if shared_ctx:
+            header += f"\n## Shared context\n{shared_ctx}\n"
+        header += "\n(Each step appends 'result / carry-over / failure' below; the next step reads it.)\n"
+        state_path.write_text(header, encoding="utf-8")
+
+    _emit("isolated", f"isolated run start — {len(steps)} steps, state=state/isolated/{name}.md"
+                      + (f", worker_model={worker_model}" if worker_model else ""))
+
+    results = []
+    for idx, it in enumerate(steps):
+        role = (str(it.get("role", "step worker")).strip() or "step worker")
+        stask = str(it.get("task", "")).strip()
+        template = str(it.get("template", "") or DEFAULT_TEMPLATE).strip()
+        if not stask:
+            results.append((idx, role, "(empty task, skipped)"))
+            continue
+        try:
+            state_txt = state_path.read_text(encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            state_txt = ""
+        worker_task = (
+            f"[Accumulated state — prior steps' result/carry-over/failure summaries. "
+            f"No raw observations; rely on this summary only]\n{state_txt}\n\n"
+            f"[This step {idx + 1}/{len(steps)}]\n{stask}\n\n"
+            f"[Return format — return ONLY these three text sections (no images)]\n"
+            f"RESULT: <this step's output summary; state key facts/numbers/names explicitly>\n"
+            f"CARRY: <facts the next step must know, 1-5 lines, or 'none'>\n"
+            f"FAILED: <any approach you tried that did not work (so the next step won't repeat it), or 'none'>"
+        )
+        _emit("spawn", f"[isolated {idx + 1}/{len(steps)}] {role}", role=role, task=stask, template=template)
+        try:
+            res = await run_subagent(role, worker_task, template, shared_ctx, model=worker_model)
+        except Exception as e:  # noqa: BLE001
+            res = f"failed: {e}"
+        try:
+            with state_path.open("a", encoding="utf-8") as f:
+                f.write(f"\n\n## Step {idx + 1}: {role}\n{res}\n")
+        except Exception:  # noqa: BLE001
+            pass
+        _emit("result", f"[isolated {idx + 1}/{len(steps)}] {role} done", role=role)
+        results.append((idx, role, res))
+
+    blocks = [f"### Step {i + 1} — {role}\n{res}" for i, role, res in results]
+    _emit("isolated", f"isolated run complete — {len(results)} steps")
+    return {"content": [{"type": "text",
+            "text": "\n\n".join(blocks) + f"\n\n(isolated state file: state/isolated/{name}.md)"}]}
+
+
+@tool(
+    "request_tool",
+    "When you hit a task your current tools can't do AND it's pure compute/string/data work "
+    "(e.g. a parser, converter, validator, calculator), build that tool yourself instead of giving up. "
+    "A tool-smith writes the code; it is registered only if it passes automated gates "
+    "(static safety scan + self-test + load check). Once registered it's available from the NEXT "
+    "spawn/goal and persists across sessions (capability compounds). "
+    "name: short tool name. purpose: what it does. signature: inputs and return. context: background (optional). "
+    "Note: tools that delete files, run processes, do network I/O, or touch secrets are auto-blocked — don't make those.",
+    {"name": str, "purpose": str, "signature": str, "context": str},
+)
+async def request_tool_tool(args: dict) -> dict:
+    if not self_tooling.is_armed():
+        return {"content": [{"type": "text", "text":
+                "Self-tooling is off. A human must arm it once "
+                "(state/self_tooling.json armed=true, and no state/STOP). Tool creation disabled for now."}]}
+
+    name = self_tooling.slug(args.get("name", ""))
+    purpose = str(args.get("purpose", "")).strip()
+    signature = str(args.get("signature", "")).strip()
+    context = str(args.get("context", ""))
+    if not purpose:
+        return {"content": [{"type": "text", "text": "Error: purpose (what the tool does) is required."}]}
+
+    _emit("self_tool", f"self-tooling: forging tool '{name}' — {purpose[:60]}")
+
+    spec = (f"Tool name: {name}\nWhat it does: {purpose}\nInputs/return: {signature}\n"
+            "Implement as a pure function with no side effects. TOOLS list and _selftest() are required.")
+    try:
+        code_raw = await run_subagent("tool smith", spec, template="tool-smith", context=context)
+    except Exception as e:  # noqa: BLE001
+        return {"content": [{"type": "text", "text": f"tool-smith run failed: {e}"}]}
+
+    code = self_tooling.extract_code(code_raw)
+    if "@tool" not in code or "TOOLS" not in code or "_selftest" not in code:
+        self_tooling.record({"name": name, "status": "rejected", "reason": "missing @tool/TOOLS/_selftest"})
+        return {"content": [{"type": "text", "text":
+                f"Rejected: generated code lacks required shape (@tool/TOOLS/_selftest). '{name}' not registered."}]}
+
+    hits = self_tooling.static_scan(code)
+    if hits:
+        self_tooling.record({"name": name, "status": "blocked", "reason": f"dangerous: {', '.join(hits)}"})
+        _emit("self_tool", f"blocked: '{name}' dangerous [{', '.join(hits)}] — discarded")
+        return {"content": [{"type": "text", "text":
+                f"Blocked: tool '{name}' touches dangerous categories [{', '.join(hits)}]. Auto-discarded."}]}
+
+    path = self_tooling.GENERATED_DIR / f"{name}.py"
+    try:
+        path.write_text(code, encoding="utf-8")
+    except Exception as e:  # noqa: BLE001
+        return {"content": [{"type": "text", "text": f"write failed: {e}"}]}
+
+    ok, out = self_tooling.run_selftest(path)
+    if not ok:
+        try:
+            path.unlink()
+        except Exception:  # noqa: BLE001
+            pass
+        self_tooling.record({"name": name, "status": "failed", "reason": f"self-test failed: {out[:200]}"})
+        _emit("self_tool", f"failed: '{name}' self-test — discarded")
+        return {"content": [{"type": "text", "text":
+                f"Failed: tool '{name}' did not pass its self-test -> auto-discarded.\n{out[:300]}"}]}
+
+    if build_generated_server() is None:
+        try:
+            path.unlink()
+        except Exception:  # noqa: BLE001
+            pass
+        self_tooling.record({"name": name, "status": "failed", "reason": "MCP load failed"})
+        return {"content": [{"type": "text", "text": f"Failed: tool '{name}' MCP load check failed -> discarded."}]}
+
+    self_tooling.record({"name": name, "status": "registered", "purpose": purpose})
+    _emit("self_tool", f"registered: tool '{name}' — available from the next spawn/goal")
+    return {"content": [{"type": "text", "text":
+            f"Success: forged, verified and registered tool '{name}' (tools/generated/{name}.py). "
+            f"All gates (static scan / self-test / load) passed. It is available from the NEXT sub-agent spawn/goal."}]}
+
+
+def build_generated_server():
+    """Build an in-process MCP server from the persisted self-built tools in tools/generated/*.py.
+
+    Each file must expose a module-level `TOOLS = [...]` (list of @tool objects).
+    Broken files are skipped so one bad file can't take down the rest. None if no tools.
+    """
+    import importlib.util
+    tools = []
+    for f in sorted(self_tooling.GENERATED_DIR.glob("*.py")):
+        if f.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(f"generated_{f.stem}", f)
+            m = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(m)
+            for t in getattr(m, "TOOLS", []) or []:
+                tools.append(t)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[generated] failed to load {f.name} (skipped): {e}")
+    if not tools:
+        return None
+    return create_sdk_mcp_server(name="generated", version="0.1.0", tools=tools)
+
+
 def build_factory_server():
-    """Build an in-process MCP server holding the spawn_agent + spawn_parallel + build_loop tools."""
+    """Build an in-process MCP server: spawn_agent + spawn_parallel + build_loop + run_isolated + request_tool."""
     return create_sdk_mcp_server(
         name="agent-factory",
-        version="1.0.0",
-        tools=[spawn_agent_tool, spawn_parallel_tool, build_loop_tool],
+        version="1.2.0",
+        tools=[spawn_agent_tool, spawn_parallel_tool, build_loop_tool,
+               run_isolated_tool, request_tool_tool],
     )
 
 
@@ -743,9 +933,13 @@ def build_notion_server():
 
 
 def _subagent_servers():
-    """Bundle of MCP servers to give sub-agents: kb (always) + notion (when a token is present)."""
+    """MCP servers for sub-agents: kb (always) + notion (when a token is present) +
+    generated (self-built tools, when any exist — reused on every later spawn)."""
     servers = {"kb": build_knowledge_server()}
     notion = build_notion_server()
     if notion:
         servers["notion"] = notion
+    generated = build_generated_server()
+    if generated:
+        servers["generated"] = generated
     return servers
