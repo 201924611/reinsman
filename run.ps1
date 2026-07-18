@@ -9,14 +9,14 @@ Set-Location $PSScriptRoot
 $venv = Join-Path $PSScriptRoot ".venv\Scripts\Activate.ps1"
 if (Test-Path $venv) { . $venv }
 
-Write-Host "[agent-core] Starting 24h operation. Press Ctrl+C twice to stop." -ForegroundColor Green
+Write-Host "[reinsman] Starting 24h operation. Press Ctrl+C twice to stop." -ForegroundColor Green
 
 while ($true) {
     try {
-        python -m agent_core
+        python -m reinsman
     } catch {
-        Write-Host "[agent-core] Server exception: $_" -ForegroundColor Red
+        Write-Host "[reinsman] Server exception: $_" -ForegroundColor Red
     }
-    Write-Host "[agent-core] Server exited. Restarting in 5 seconds..." -ForegroundColor Yellow
+    Write-Host "[reinsman] Server exited. Restarting in 5 seconds..." -ForegroundColor Yellow
     Start-Sleep -Seconds 5
 }

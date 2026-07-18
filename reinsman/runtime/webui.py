@@ -1,7 +1,7 @@
 """Built-in minimal web chat UI.
 
 Served at GET / by the FastAPI server so the harness is usable out of the box:
-clone -> `python -m agent_core` -> open http://127.0.0.1:8848 -> chat.
+clone -> `python -m reinsman` -> open http://127.0.0.1:8848 -> chat.
 
 Zero external dependencies (no CDN, no build step). The page talks to the existing
 HTTP API: POST /goal to submit, then poll GET /tasks/{id} until the task finishes,
@@ -14,7 +14,7 @@ CHAT_HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>agent-core</title>
+<title>reinsman</title>
 <style>
   :root{
     --bg:#0f1216; --panel:#161b22; --border:#262c36; --text:#e6edf3;
@@ -70,7 +70,7 @@ CHAT_HTML = """<!doctype html>
 </head>
 <body>
 <header>
-  <span class="dot"></span><h1>agent-core</h1>
+  <span class="dot"></span><h1>reinsman</h1>
   <span class="sub">throw it a goal — it runs autonomously</span>
   <a href="#" id="routinesBtn">routines</a>
   <a href="/docs" target="_blank">API</a>

@@ -29,10 +29,10 @@ def _seed(root: Path, bundle: Path) -> None:
 
 
 # Project root = the writable data home.
-#  - From source: the repo root (this file is <root>/agent_core/config.py).
-#  - Frozen (.exe): AGENT_CORE_HOME or ~/.agent-core, seeded from the bundled assets.
+#  - From source: the repo root (this file is <root>/reinsman/config.py).
+#  - Frozen (.exe): REINSMAN_HOME or ~/.reinsman, seeded from the bundled assets.
 if getattr(sys, "frozen", False):
-    ROOT = Path(os.environ.get("AGENT_CORE_HOME") or (Path.home() / ".agent-core")).resolve()
+    ROOT = Path(os.environ.get("REINSMAN_HOME") or (Path.home() / ".reinsman")).resolve()
     _seed(ROOT, Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)))
 else:
     ROOT = Path(__file__).resolve().parent.parent
@@ -108,8 +108,8 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_ALLOWED_CHAT_IDS = [
     s.strip() for s in os.getenv("TELEGRAM_ALLOWED_CHAT_IDS", "").split(",") if s.strip()
 ]
-# Base URL of the agent-core API the bridge will call (default = local server).
-AGENT_CORE_URL = os.getenv("AGENT_CORE_URL", f"http://{HOST}:{PORT}")
+# Base URL of the reinsman API the bridge will call (default = local server).
+REINSMAN_URL = os.getenv("REINSMAN_URL", f"http://{HOST}:{PORT}")
 # Persistent store file for conversations (channels).
 CONVERSATIONS_FILE = STATE_DIR / "conversations.json"
 

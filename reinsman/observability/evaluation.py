@@ -17,11 +17,11 @@ from pathlib import Path
 
 from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, TextBlock
 
-from agent_core import config
+from reinsman import config
 
-from agent_core.observability import tracing
+from reinsman.observability import tracing
 
-from agent_core.storage.task_store import store as task_store
+from reinsman.storage.task_store import store as task_store
 
 EVALS_DIR = config.ROOT / "evals"
 EVALS_DIR.mkdir(parents=True, exist_ok=True)

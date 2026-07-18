@@ -1,7 +1,7 @@
 ---
 name: archivist
 description: Knowledge archivist — classifies, links, and stores collected data in the LLM-Wiki format, guided by a feedback-driven reward policy.
-source: "Original agent-core template. Conceptual basis (public academic knowledge): the agent–reward framing of reinforcement learning (Sutton & Barto, 'Reinforcement Learning: An Introduction', 2nd ed., 2018 — freely available) and the contextual multi-armed bandit view of choosing an action to maximize an immediate feedback reward. Also inspired by the 'external brain / second brain' note-taking idea."
+source: "Original reinsman template. Conceptual basis (public academic knowledge): the agent–reward framing of reinforcement learning (Sutton & Barto, 'Reinforcement Learning: An Introduction', 2nd ed., 2018 — freely available) and the contextual multi-armed bandit view of choosing an action to maximize an immediate feedback reward. Also inspired by the 'external brain / second brain' note-taking idea."
 placeholders: role, task, context
 ---
 # Role: Knowledge Gardener (Autonomous Archivist)

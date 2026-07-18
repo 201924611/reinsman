@@ -8,7 +8,7 @@ Endpoints:
   POST /tasks/{id}/cancel                  -> cancel a running task
   GET  /health                             -> health check
 
-Run: python -m agent_core   (or run.ps1)
+Run: python -m reinsman   (or run.ps1)
 """
 from __future__ import annotations
 
@@ -22,16 +22,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from agent_core import config
+from reinsman import config
 
-from agent_core.runtime import routines
+from reinsman.runtime import routines
 
-from agent_core.prompts.agent_loader import list_agents, load_agent
-from agent_core.applog import get_logger
-from agent_core.prompts.template_engine import list_templates, load_template
-from agent_core.runtime.orchestrator import run_goal
-from agent_core.runtime.webui import CHAT_HTML
-from agent_core.storage.task_store import store
+from reinsman.prompts.agent_loader import list_agents, load_agent
+from reinsman.applog import get_logger
+from reinsman.prompts.template_engine import list_templates, load_template
+from reinsman.runtime.orchestrator import run_goal
+from reinsman.runtime.webui import CHAT_HTML
+from reinsman.storage.task_store import store
 
 logger = get_logger()
 
@@ -92,7 +92,7 @@ ROUTINE_PRESETS = [
 
 async def _run_self_improve(r) -> None:
     """Handle an '@self-improve' routine by running the self-improvement cycle directly (not as a goal)."""
-    from agent_core.runtime import self_improve
+    from reinsman.runtime import self_improve
     routines.store.mark_ran(r.id, "self-improve")
     try:
         res = await self_improve.auto_cycle()
@@ -139,7 +139,7 @@ async def lifespan(app: FastAPI):
         sched_task.cancel()
 
 
-app = FastAPI(title="Agent Core", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Reinsman", version="1.0.0", lifespan=lifespan)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -234,7 +234,7 @@ async def resume_task(task_id: str):
 
     cont_prompt = config.get_resume_prompt()
     # Resuming keeps the same configuration (variant) (read from the trace)
-    from agent_core.observability import tracing
+    from reinsman.observability import tracing
 
     tr = tracing.store.get(task_id) or {}
     variant = tr.get("variant", "default")
@@ -296,7 +296,7 @@ async def runtime_agents():
 @app.get("/knowledge")
 async def knowledge():
     """List of documents stored in the persistent knowledge store (knowledge/10_Wiki)."""
-    from agent_core.kb.knowledge_store import list_entries
+    from reinsman.kb.knowledge_store import list_entries
     return {"count": len(list_entries()), "entries": list_entries()}
 
 
@@ -319,7 +319,7 @@ async def knowledge_feedback(req: FeedbackRequest):
     signal = req.signal
     if signal is None and req.approved is not None:
         signal = "approved" if req.approved else "rejected"
-    from agent_core.kb.knowledge_store import record_feedback
+    from reinsman.kb.knowledge_store import record_feedback
     record_feedback(note, category=req.category, signal=signal, moved_to=req.moved_to)
     return {"ok": True, "recorded": note, "category": req.category,
             "signal": signal, "moved_to": req.moved_to}
@@ -328,14 +328,14 @@ async def knowledge_feedback(req: FeedbackRequest):
 @app.get("/knowledge/policy")
 async def knowledge_policy():
     """Current feedback policy: average reward per category + learned corrections (bandit state)."""
-    from agent_core.kb.knowledge_store import policy_scores
+    from reinsman.kb.knowledge_store import policy_scores
     return policy_scores()
 
 
 @app.get("/traces")
 async def list_traces():
     """List of recorded traces (configuration label + token/tool aggregates)."""
-    from agent_core.observability import tracing
+    from reinsman.observability import tracing
 
     out = []
     for tid in tracing.store.list_ids():
@@ -350,7 +350,7 @@ async def list_traces():
 @app.get("/trace/{task_id}")
 async def get_trace(task_id: str):
     """A task's full trace (spans, tool chain, sessions) + aggregates."""
-    from agent_core.observability import tracing
+    from reinsman.observability import tracing
 
     tr = tracing.store.get(task_id)
     if not tr:
@@ -360,7 +360,7 @@ async def get_trace(task_id: str):
 
 @app.get("/trace/{task_id}/view", response_class=HTMLResponse)
 async def trace_view(task_id: str):
-    from agent_core.observability import viewer
+    from reinsman.observability import viewer
 
     return viewer.trace_view_html(task_id)
 
@@ -368,14 +368,14 @@ async def trace_view(task_id: str):
 @app.post("/tasks/{task_id}/evaluate")
 async def evaluate_task(task_id: str):
     """Automatically score a task (LLM judge + rule-based metrics), then store and return the result."""
-    from agent_core.observability import evaluation
+    from reinsman.observability import evaluation
 
     return await evaluation.evaluate(task_id)
 
 
 @app.get("/eval/{task_id}")
 async def get_eval(task_id: str):
-    from agent_core.observability import evaluation
+    from reinsman.observability import evaluation
 
     e = evaluation.get_eval(task_id)
     if not e:
@@ -386,9 +386,9 @@ async def get_eval(task_id: str):
 @app.get("/compare")
 async def compare(ids: str):
     """Compare several tasks side by side by configuration (variant) (trace aggregates + eval scores)."""
-    from agent_core.observability import tracing
+    from reinsman.observability import tracing
 
-    from agent_core.observability import evaluation
+    from reinsman.observability import evaluation
 
     rows = []
     for tid in [x.strip() for x in ids.split(",") if x.strip()]:
@@ -413,7 +413,7 @@ async def compare(ids: str):
 
 @app.get("/compare/view", response_class=HTMLResponse)
 async def compare_view(ids: str):
-    from agent_core.observability import viewer
+    from reinsman.observability import viewer
 
     return viewer.compare_view_html(ids)
 
@@ -431,21 +431,21 @@ class ABRequest(BaseModel):
 @app.post("/self-improve/propose")
 async def si_propose(req: ProposeRequest):
     """Analyze recent evals and produce an improvement proposal for the target prompt. (Doesn't touch the live file.)"""
-    from agent_core.runtime import self_improve
+    from reinsman.runtime import self_improve
 
     return await self_improve.propose(target=req.target, n=req.n)
 
 
 @app.get("/self-improve/proposals")
 async def si_list():
-    from agent_core.runtime import self_improve
+    from reinsman.runtime import self_improve
 
     return self_improve.list_proposals()
 
 
 @app.get("/self-improve/proposal/{pid}")
 async def si_get(pid: str):
-    from agent_core.runtime import self_improve
+    from reinsman.runtime import self_improve
 
     p = self_improve.get_proposal(pid)
     if not p:
@@ -456,7 +456,7 @@ async def si_get(pid: str):
 @app.post("/self-improve/apply/{pid}")
 async def si_apply(pid: str):
     """Apply a candidate to the live prompt (human-approval gate). Auto-backup before applying."""
-    from agent_core.runtime import self_improve
+    from reinsman.runtime import self_improve
 
     r = self_improve.apply(pid)
     if "error" in r:
@@ -466,7 +466,7 @@ async def si_apply(pid: str):
 
 @app.post("/self-improve/revert")
 async def si_revert(target: str = "orchestrator"):
-    from agent_core.runtime import self_improve
+    from reinsman.runtime import self_improve
 
     r = self_improve.revert(target)
     if "error" in r:
@@ -478,7 +478,7 @@ async def si_revert(target: str = "orchestrator"):
 async def si_ab(req: ABRequest):
     """Run the same goal simultaneously with the current (baseline) vs. candidate prompt.
     When done, evaluate each and compare scores via /compare. (The candidate is injected without any live change.)"""
-    from agent_core.runtime import self_improve
+    from reinsman.runtime import self_improve
 
     if not self_improve.proposal_text(req.proposal_id):
         raise HTTPException(status_code=404, detail="unknown proposal")

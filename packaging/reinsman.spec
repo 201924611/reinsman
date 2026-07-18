@@ -1,6 +1,6 @@
-# PyInstaller spec — single-file agent-core desktop app (native window).
-# Build:  pyinstaller packaging/agent-core.spec --noconfirm    (see packaging/build_exe.ps1)
-# Produces dist/agent-core.exe. On first run it seeds ~/.agent-core with templates/agents/
+# PyInstaller spec — single-file reinsman desktop app (native window).
+# Build:  pyinstaller packaging/reinsman.spec --noconfirm    (see packaging/build_exe.ps1)
+# Produces dist/reinsman.exe. On first run it seeds ~/.reinsman with templates/agents/
 # knowledge/.env (see config._seed); each user still authenticates once.
 import os
 from PyInstaller.utils.hooks import collect_all, collect_submodules
@@ -32,7 +32,7 @@ if os.path.isfile(os.path.join(ROOT, ".env.example")):
     datas.append((os.path.join(ROOT, ".env.example"), "."))
 
 a = Analysis(
-    [os.path.join(ROOT, "agent_core", "app.py")],
+    [os.path.join(ROOT, "reinsman", "app.py")],
     pathex=[ROOT],
     datas=datas,
     binaries=binaries,
@@ -42,7 +42,7 @@ a = Analysis(
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, a.binaries, a.datas, [],
-    name="agent-core",
+    name="reinsman",
     console=False,           # windowed app (no console)
     onefile=True,
     upx=False,

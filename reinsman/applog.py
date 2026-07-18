@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 
-from agent_core import config
+from reinsman import config
 
 
 _logger: logging.Logger | None = None
@@ -21,7 +21,7 @@ def get_logger() -> logging.Logger:
     global _logger
     if _logger is not None:
         return _logger
-    logger = logging.getLogger("agentcore")
+    logger = logging.getLogger("reinsman")
     logger.setLevel(logging.INFO)
     logger.propagate = False
     fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")

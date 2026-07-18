@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from agent_core import config
+from reinsman import config
 
 
 TRACES_DIR = config.ROOT / "traces"

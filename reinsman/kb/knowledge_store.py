@@ -21,9 +21,9 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from agent_core import config
+from reinsman import config
 
-from agent_core.applog import get_logger
+from reinsman.applog import get_logger
 
 logger = get_logger()
 

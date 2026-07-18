@@ -1,6 +1,6 @@
 # Self‑tooling — an agent that builds the tools it's missing
 
-Most agents are limited to the tools you hand them. agent-core can **notice it's
+Most agents are limited to the tools you hand them. reinsman can **notice it's
 missing a tool, write that tool itself, verify it, register it, and reuse it in
 later tasks** — its capability compounds over time, the way its knowledge store
 already compounds knowledge.

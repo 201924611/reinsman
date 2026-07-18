@@ -34,14 +34,14 @@ from claude_agent_sdk import (
     create_sdk_mcp_server,
 )
 
-from agent_core import config
-from agent_core.runtime import self_tooling
+from reinsman import config
+from reinsman.runtime import self_tooling
 
-from agent_core.observability import tracing
+from reinsman.observability import tracing
 
-from agent_core.prompts.agent_loader import load_agent_file
-from agent_core.applog import get_logger
-from agent_core.prompts.template_engine import render, DEFAULT_TEMPLATE
+from reinsman.prompts.agent_loader import load_agent_file
+from reinsman.applog import get_logger
+from reinsman.prompts.template_engine import render, DEFAULT_TEMPLATE
 
 logger = get_logger()
 
@@ -530,7 +530,7 @@ def _emit(kind: str, message: str, **extra) -> None:
     tid = current_task_id.get()
     if not tid:
         return
-    from agent_core.storage.task_store import store
+    from reinsman.storage.task_store import store
     store.append_event(tid, kind, message, **extra)
 
 
@@ -868,7 +868,7 @@ def build_factory_server():
      "tags": str, "related": str, "raw_text": str},
 )
 async def save_knowledge_tool(args: dict) -> dict:
-    from agent_core.kb.knowledge_store import save_knowledge
+    from reinsman.kb.knowledge_store import save_knowledge
 
     title = str(args.get("title", "")).strip()
     if not title:
@@ -887,7 +887,7 @@ async def save_knowledge_tool(args: dict) -> dict:
     _emit("kb", f"knowledge saved: {res['path']}")
     # Optional: git sync
     try:
-        from agent_core.kb.knowledge_store import git_sync
+        from reinsman.kb.knowledge_store import git_sync
         git_sync(f"save {res['path']}")
     except Exception:  # noqa: BLE001
         pass

@@ -5,9 +5,9 @@ Reads the cited prompt templates from the templates/ folder and fills in the val
 """
 from __future__ import annotations
 
-from agent_core import config
+from reinsman import config
 
-from agent_core.prompts.agent_loader import _parse
+from reinsman.prompts.agent_loader import _parse
 
 DEFAULT_TEMPLATE = "default"
 

@@ -1,8 +1,8 @@
-"""Telegram <-> agent-core bridge (P1 PoC).
+"""Telegram <-> reinsman bridge (P1 PoC).
 
 Stage 1 of the harness evolution roadmap: 'reuse a messenger instead of building a chat front-end
 from scratch' (the OpenClaw insight). Send a message via Telegram -> submit that text as a goal to the
-agent-core HTTP API -> when it finishes, reply with a result summary in the same conversation.
+reinsman HTTP API -> when it finishes, reply with a result summary in the same conversation.
 Conversations are persisted per chat_id, laying the groundwork for 'continuing from another
 window (another device)'.
 
@@ -27,10 +27,10 @@ import urllib.error
 from pathlib import Path
 from typing import Any, Protocol
 
-# allow running as a script (python agent_core/channels/telegram_bridge.py) — add repo root to path
+# allow running as a script (python reinsman/channels/telegram_bridge.py) — add repo root to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from agent_core import config  # noqa: E402
-from agent_core.applog import get_logger  # noqa: E402
+from reinsman import config  # noqa: E402
+from reinsman.applog import get_logger  # noqa: E402
 
 try:  # keep Unicode/emoji output from breaking even on a Windows console (cp949)
     sys.stdout.reconfigure(encoding="utf-8")
@@ -96,7 +96,7 @@ class Telegram(Protocol):
     def send(self, chat_id: str, text: str) -> None: ...
 
 
-class AgentCore(Protocol):
+class Reinsman(Protocol):
     def submit_goal(self, goal: str) -> str: ...
     def wait_task(self, task_id: str, timeout: float) -> dict[str, Any]: ...
 
@@ -121,7 +121,7 @@ class RealTelegram:
         self._call("sendMessage", {"chat_id": chat_id, "text": text[:4000]})
 
 
-class RealAgentCore:
+class RealReinsman:
     def __init__(self, base_url: str):
         self.base = base_url.rstrip("/")
 
@@ -160,7 +160,7 @@ def summarize_result(task: dict[str, Any]) -> str:
 
 # ───────────────────────── the bridge itself ─────────────────────────
 class Bridge:
-    def __init__(self, tg: Telegram, core: AgentCore, allowed: list[str] | None,
+    def __init__(self, tg: Telegram, core: Reinsman, allowed: list[str] | None,
                  task_timeout: float = 1800.0):
         self.tg = tg
         self.core = core
@@ -215,7 +215,7 @@ class Bridge:
 
 # ───────────────────────── dry-run self-test ─────────────────────────
 def _dry_run() -> int:
-    """Validate the bridge logic without a token/server. Injects a fake Telegram and fake agent-core."""
+    """Validate the bridge logic without a token/server. Injects a fake Telegram and fake reinsman."""
     sent: list[tuple[str, str]] = []
 
     class FakeTelegram:
@@ -281,7 +281,7 @@ def main() -> int:
         log.warning("[telegram] ⚠️ ALLOWED_CHAT_IDS not set — anyone can run the agent (for development).")
     br = Bridge(
         RealTelegram(token),
-        RealAgentCore(config.AGENT_CORE_URL),
+        RealReinsman(config.REINSMAN_URL),
         allowed=config.TELEGRAM_ALLOWED_CHAT_IDS,
     )
     br.run()

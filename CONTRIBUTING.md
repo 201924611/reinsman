@@ -1,13 +1,13 @@
 # Contributing
 
-Thanks for your interest in agent-core.
+Thanks for your interest in reinsman.
 
 ## Dev setup
 ```bash
 python -m venv .venv && . .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cp .env.example .env
-python -m agent_core
+python -m reinsman
 ```
 
 ## Ground rules
@@ -17,9 +17,9 @@ python -m agent_core
   your own `workspace/`, not in this repo.
 - New prompt templates go in `templates/` as `.md` with a `source` citation in frontmatter
   and `{{role}}` / `{{task}}` / `{{context}}` placeholders.
-- New channel adapters go in `agent_core/channels/`, talking to the HTTP API only (keep the engine decoupled).
+- New channel adapters go in `reinsman/channels/`, talking to the HTTP API only (keep the engine decoupled).
 
 ## Pull requests
 - One focused change per PR; describe what and why.
-- Run `python -m agent_core.channels.telegram_bridge --dry-run` and any relevant smoke checks.
+- Run `python -m reinsman.channels.telegram_bridge --dry-run` and any relevant smoke checks.
 - Match the surrounding code style.

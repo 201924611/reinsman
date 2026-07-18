@@ -1,11 +1,11 @@
-"""Desktop app window for agent-core — a small, collapsible native window (no browser).
+"""Desktop app window for reinsman — a small, collapsible native window (no browser).
 
 Runs the server in-process and shows the built-in chat + routines UI in a compact native
 window via pywebview. The UI can fold to a slim bar and expand back (the window resizes with
 it via the tiny JS API below), and the layout is responsive. Falls back to the browser if
 pywebview isn't installed.
 
-Run:    python -m agent_core.app
+Run:    python -m reinsman.app
 Extras: pip install pywebview
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ import time
 import urllib.request
 import webbrowser
 
-from agent_core import config
+from reinsman import config
 
 URL = f"http://{config.HOST}:{config.PORT}"
 
@@ -28,7 +28,7 @@ COLLAPSED = (460, 140)
 def _serve() -> None:
     """Run uvicorn in this (non-main) thread without touching signal handlers."""
     import uvicorn
-    from agent_core.runtime.server import app as fastapi_app
+    from reinsman.runtime.server import app as fastapi_app
 
     server = uvicorn.Server(uvicorn.Config(fastapi_app, host=config.HOST, port=config.PORT, log_level="warning"))
     server.install_signal_handlers = lambda: None  # signals only work on the main thread
@@ -66,8 +66,8 @@ def main() -> None:
     try:
         import webview  # pywebview
     except Exception:  # noqa: BLE001 — not installed: fall back to the browser
-        print(f"[agent-core] pywebview not installed — opening in your browser at {URL}.")
-        print("[agent-core] `pip install pywebview` for the native window. Ctrl+C to stop.")
+        print(f"[reinsman] pywebview not installed — opening in your browser at {URL}.")
+        print("[reinsman] `pip install pywebview` for the native window. Ctrl+C to stop.")
         webbrowser.open(URL)
         try:
             while True:
@@ -78,7 +78,7 @@ def main() -> None:
 
     api = _Api()
     api.window = webview.create_window(
-        "agent-core", URL,
+        "reinsman", URL,
         width=EXPANDED[0], height=EXPANDED[1],
         min_size=(340, 130),
         js_api=api,

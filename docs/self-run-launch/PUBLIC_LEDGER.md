@@ -48,3 +48,13 @@ own reasoning, verify each claim against the code, and re-run the whole launch w
 
 ---
 _Each entry is recoverable from `LEDGER.md` — the agent can stop at a limit and resume exactly here._
+
+## 2026-07-19 — Project renamed: `agent-core` → `reinsman`
+
+Measured finding: the name `agent-core` was a red ocean (AWS Bedrock AgentCore, a same-named
+framework, and Microsoft agent-framework own page 1 of search) — discoverability ~0.
+12 candidates were generated on 3 axes (harness metaphor / autonomy / coinage) and checked
+against GitHub, PyPI, npm and domain registries. Winner: **reinsman** (the one who holds the
+reins — the harness metaphor made literal). GitHub: 0 name collisions; PyPI/npm: unclaimed.
+Historical documents in this folder keep the old name as-is — they are the provenance record
+of the launch as it happened. Old GitHub URLs redirect automatically.

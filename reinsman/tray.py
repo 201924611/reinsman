@@ -1,11 +1,11 @@
-"""Desktop 'app' launcher for agent-core.
+"""Desktop 'app' launcher for reinsman.
 
-Runs the server (`python -m agent_core`) as a child process, opens the built-in web
+Runs the server (`python -m reinsman`) as a child process, opens the built-in web
 chat in your browser, and — if `pystray` + `pillow` are installed — shows a tray icon
 with Open / Restart / Quit. Without those optional deps it still starts the server and
 opens the browser, staying up until Ctrl+C.
 
-Run:    python -m agent_core.tray
+Run:    python -m reinsman.tray
 Extras: pip install pystray pillow      # optional, for the tray icon
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ import time
 import urllib.request
 import webbrowser
 
-from agent_core import config
+from reinsman import config
 
 URL = f"http://{config.HOST}:{config.PORT}"
 _proc: subprocess.Popen | None = None
@@ -27,7 +27,7 @@ def _start() -> None:
     global _proc
     if _proc and _proc.poll() is None:
         return
-    _proc = subprocess.Popen([sys.executable, "-m", "agent_core"], cwd=str(config.ROOT))
+    _proc = subprocess.Popen([sys.executable, "-m", "reinsman"], cwd=str(config.ROOT))
 
 
 def _stop() -> None:
@@ -62,8 +62,8 @@ def main() -> None:
         from PIL import Image, ImageDraw
         from pystray import Icon, Menu, MenuItem
     except Exception:  # noqa: BLE001 — optional deps missing: run headless
-        print(f"[agent-core] server starting at {URL}")
-        print("[agent-core] tray icon disabled — `pip install pystray pillow` to enable. Ctrl+C to stop.")
+        print(f"[reinsman] server starting at {URL}")
+        print("[reinsman] tray icon disabled — `pip install pystray pillow` to enable. Ctrl+C to stop.")
         try:
             while True:
                 time.sleep(1)
@@ -89,7 +89,7 @@ def main() -> None:
         MenuItem("Restart server", _restart),
         MenuItem("Quit", _quit),
     )
-    Icon("agent-core", img, "agent-core", menu).run()
+    Icon("reinsman", img, "reinsman", menu).run()
 
 
 if __name__ == "__main__":

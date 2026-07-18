@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-from agent_core import config
+from reinsman import config
 
 GENERATED_DIR = config.ROOT / "tools" / "generated"
 GENERATED_DIR.mkdir(parents=True, exist_ok=True)

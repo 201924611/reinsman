@@ -1,4 +1,4 @@
-# agent-core
+# reinsman
 
 > A self-hosted **agent harness** — throw one HTTP *goal* at it and a 24/7 central
 > orchestrator (Claude, opus) carries it out autonomously, spawning sub-agents and
@@ -9,7 +9,7 @@
 context management, memory, observability, and safety scaffolding around the model.
 
 ```
-HTTP POST /goal  ──▶  central orchestrator (agent_core/runtime/orchestrator.py)
+HTTP POST /goal  ──▶  central orchestrator (reinsman/runtime/orchestrator.py)
                         │  spawn_agent / build_loop / spawn_parallel
                         ├──▶ sub-agent ─(done)→ runtime md auto-deleted
                         ├──▶ sub-agent ─(done)→ ...
@@ -20,7 +20,7 @@ HTTP GET /tasks/{id} ──▶ progress / result
 
 ## 🧾 This project's launch was run *by* the agent
 
-The promo for agent-core wasn't written by a human about the tool — it was submitted to the tool as **one
+The promo for reinsman wasn't written by a human about the tool — it was submitted to the tool as **one
 goal** and executed autonomously (research → skeptic self-critique → asset build), leaving a
 machine-verifiable, **one-command-reproducible** trail in [`docs/self-run-launch/`](docs/self-run-launch/).
 Don't trust the pitch — **verify it** against the code, then re-run the launch yourself.
@@ -28,8 +28,8 @@ Measured, not marketing (e.g. context isolation cut an identical task **$3.74 �
 counts are deliberately not claimed.
 
 ## Features
-- **Central orchestrator loop** with auto-resume on turn exhaustion (`agent_core/runtime/orchestrator.py`)
-- **Dynamic sub-agents** from cited prompt templates (`agent_core/runtime/agent_factory.py`, `templates/`)
+- **Central orchestrator loop** with auto-resume on turn exhaustion (`reinsman/runtime/orchestrator.py`)
+- **Dynamic sub-agents** from cited prompt templates (`reinsman/runtime/agent_factory.py`, `templates/`)
 - **`build_loop`** — planner → executor → evaluator iteration with best-round snapshot restore
 - **Persistent knowledge graph** — `save_knowledge` writes an Obsidian-compatible vault
   (`knowledge/`, `[[wikilinks]]` + auto Index/Graph)
@@ -42,7 +42,7 @@ counts are deliberately not claimed.
 python -m venv .venv && . .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cp .env.example .env        # then edit (see below)
-python -m agent_core        # serves on 127.0.0.1:8848
+python -m reinsman        # serves on 127.0.0.1:8848
 ```
 Then open **http://127.0.0.1:8848** in your browser — a built-in chat UI is served there,
 so you can talk to the agent immediately (no extra setup).
@@ -64,23 +64,23 @@ Treat it like an always-on app instead of a terminal command.
 shows the chat + routines UI in a native window (Windows uses the built-in Edge WebView2):
 ```bash
 pip install pywebview          # for the native window
-python -m agent_core.app       # opens the app window (falls back to browser if pywebview is missing)
+python -m reinsman.app       # opens the app window (falls back to browser if pywebview is missing)
 ```
 
 **Single .exe** — package the native-window app into one executable:
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_exe.ps1   # -> dist\agent-core.exe
+powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_exe.ps1   # -> dist\reinsman.exe
 ```
 This build **does not include Claude** — Claude Code is Anthropic's proprietary software and is not
 bundled or redistributed here. The `.exe` requires Claude to be present at runtime (an
-`ANTHROPIC_API_KEY`, or the Claude Code CLI on PATH). On first run it seeds `~/.agent-core`
+`ANTHROPIC_API_KEY`, or the Claude Code CLI on PATH). On first run it seeds `~/.reinsman`
 (templates / agents / knowledge / `.env`). For most use, just **run from source / the app launcher**
 above with your own Claude — that's the simplest way to test.
 
 **Tray launcher** — instead of a window, keep it in the tray (Open / Restart / Quit):
 ```bash
 pip install pystray pillow          # optional — enables the tray icon
-python -m agent_core.tray
+python -m reinsman.tray
 ```
 Without `pystray`/`pillow` it still starts the server and opens the browser (Ctrl+C to stop).
 
@@ -90,7 +90,7 @@ server whenever you log in (and restarts it if it exits):
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\autostart.ps1 -Install
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\autostart.ps1 -Uninstall   # to remove
 ```
-(macOS/Linux: run `python -m agent_core.tray` from your login items, or wrap `run.ps1`'s
+(macOS/Linux: run `python -m reinsman.tray` from your login items, or wrap `run.ps1`'s
 equivalent in a `systemd --user` / `launchd` unit.)
 
 Note: even as an app, each user still authenticates once (`ANTHROPIC_API_KEY` in `.env`
@@ -104,24 +104,24 @@ For remote/mobile use, an optional **Telegram bridge** reuses an existing chat a
 UI (no custom frontend, conversations resume across devices):
 ```bash
 # .env: TELEGRAM_BOT_TOKEN=...  TELEGRAM_ALLOWED_CHAT_IDS=<your chat id>
-python -m agent_core.channels.telegram_bridge            # live
-python -m agent_core.channels.telegram_bridge --dry-run  # logic self-test, no token needed
+python -m reinsman.channels.telegram_bridge            # live
+python -m reinsman.channels.telegram_bridge --dry-run  # logic self-test, no token needed
 ```
 
 ## Layout
-Source lives in the `agent_core/` package, grouped by type; data/prompt folders stay at the repo root.
+Source lives in the `reinsman/` package, grouped by type; data/prompt folders stay at the repo root.
 
 | Path | Role |
 |---|---|
-| `agent_core/__main__.py` | entry point (`python -m agent_core`) |
-| `agent_core/config.py` · `applog.py` | configuration & logging |
-| `agent_core/runtime/` | `server` (FastAPI), `orchestrator`, `agent_factory` (spawn + `build_loop`), `routines`, `self_improve` |
-| `agent_core/prompts/` | `agent_loader`, `template_engine` |
-| `agent_core/kb/` | `knowledge_store` (persistent wiki) |
-| `agent_core/observability/` | `tracing`, `evaluation`, `viewer` |
-| `agent_core/storage/` | `task_store` |
-| `agent_core/channels/` | messenger adapters (chat front, e.g. Telegram) |
-| `agent_core/tools/` | agent-callable tools (e.g. `publish`) |
+| `reinsman/__main__.py` | entry point (`python -m reinsman`) |
+| `reinsman/config.py` · `applog.py` | configuration & logging |
+| `reinsman/runtime/` | `server` (FastAPI), `orchestrator`, `agent_factory` (spawn + `build_loop`), `routines`, `self_improve` |
+| `reinsman/prompts/` | `agent_loader`, `template_engine` |
+| `reinsman/kb/` | `knowledge_store` (persistent wiki) |
+| `reinsman/observability/` | `tracing`, `evaluation`, `viewer` |
+| `reinsman/storage/` | `task_store` |
+| `reinsman/channels/` | messenger adapters (chat front, e.g. Telegram) |
+| `reinsman/tools/` | agent-callable tools (e.g. `publish`) |
 | `agents/` · `templates/` | agent definitions & cited prompt templates (`.md`) |
 | `knowledge/` | persistent Obsidian-style knowledge vault (empty scaffold here) |
 | `tools/screenshot/` | standalone Playwright screenshot scripts |

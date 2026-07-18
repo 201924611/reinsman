@@ -19,9 +19,9 @@ from pathlib import Path
 
 from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, TextBlock
 
-from agent_core import config
+from reinsman import config
 
-from agent_core.observability import evaluation
+from reinsman.observability import evaluation
 
 
 SI_DIR = config.ROOT / "self_improve"

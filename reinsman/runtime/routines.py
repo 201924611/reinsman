@@ -1,6 +1,6 @@
 """Periodic routine registry — the list of things the main orchestrator does on a schedule.
 
-Design: in agent-core, one goal = one independent orchestrator + its subtree.
+Design: in reinsman, one goal = one independent orchestrator + its subtree.
 So the pattern of "on each cycle, spin up an agent per task, hand it a plan, and let
 that agent create and run subagents" is implemented directly by "maintaining a list of
 routines (= plans) and submitting each one as a goal on every cycle." The main process
@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone, timedelta
 
-from agent_core import config
+from reinsman import config
 
 
 
