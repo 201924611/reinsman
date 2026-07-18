@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 480" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">
+  <!-- terminal window -->
+  <rect x="0" y="0" width="860" height="480" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <rect x="0" y="0" width="860" height="34" rx="10" fill="#161b22"/>
+  <rect x="0" y="24" width="860" height="10" fill="#161b22"/>
+  <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
+  <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
+  <circle cx="62" cy="17" r="6" fill="#27c93f"/>
+  <text x="430" y="21" text-anchor="middle" fill="#8b949e" font-size="12">reinsman — one goal in, autonomous execution out</text>
+
+  <g fill="#c9d1d9">
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.4s" fill="freeze"/>
+      <text x="24" y="64"><tspan fill="#27c93f">$</tspan> curl -X POST localhost:8848/goal -d '{"goal":</text>
+      <text x="40" y="84"><tspan fill="#a5d6ff">"Build a landing page, iterate until it looks right, prove it with screenshots"</tspan>}'</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="1.4s" fill="freeze"/>
+      <text x="24" y="110" fill="#8b949e">{"task_id": "t-42", "status": "accepted"}</text>
+    </g>
+
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="2.4s" fill="freeze"/>
+      <text x="24" y="146"><tspan fill="#d2a8ff">[orchestrator]</tspan> goal accepted → planning</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="3.2s" fill="freeze"/>
+      <text x="24" y="170"><tspan fill="#d2a8ff">[orchestrator]</tspan> spawn_agent(role="planner")  <tspan fill="#8b949e">→ runtime agent, deleted when done</tspan></text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="4.0s" fill="freeze"/>
+      <text x="24" y="194"><tspan fill="#79c0ff">[planner]</tspan>      3-step plan → handoff</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="4.8s" fill="freeze"/>
+      <text x="24" y="218"><tspan fill="#d2a8ff">[orchestrator]</tspan> build_loop(rounds=3)  <tspan fill="#8b949e">plan → execute → evaluate, screenshot each round</tspan></text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="5.6s" fill="freeze"/>
+      <text x="24" y="242"><tspan fill="#ffa657">[executor]</tspan>     round 1 built</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="6.4s" fill="freeze"/>
+      <text x="24" y="266"><tspan fill="#f2cc60">[evaluator]</tspan>    round 1 → 6.8/10 — spacing and contrast issues</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="7.2s" fill="freeze"/>
+      <text x="24" y="290"><tspan fill="#ffa657">[executor]</tspan>     round 2 fixed</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="8.0s" fill="freeze"/>
+      <text x="24" y="314"><tspan fill="#f2cc60">[evaluator]</tspan>    round 2 → 8.9/10 <tspan fill="#27c93f">✓</tspan>  <tspan fill="#8b949e">best round auto-restored</tspan></text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="8.8s" fill="freeze"/>
+      <text x="24" y="338"><tspan fill="#d2a8ff">[orchestrator]</tspan> save_knowledge(...)  <tspan fill="#8b949e">→ persists to the local wiki graph</tspan></text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="9.6s" fill="freeze"/>
+      <text x="24" y="362"><tspan fill="#d2a8ff">[orchestrator]</tspan> done — trace: traces/t-42.json · eval: evals/t-42.json</text>
+    </g>
+
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="10.8s" fill="freeze"/>
+      <text x="24" y="398"><tspan fill="#27c93f">$</tspan> curl localhost:8848/tasks/t-42</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="11.6s" fill="freeze"/>
+      <text x="24" y="422" fill="#8b949e">{"status": <tspan fill="#27c93f">"completed"</tspan>, "result": "landing page built, 2 rounds, screenshots attached"}</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="12.6s" fill="freeze"/>
+      <text x="24" y="456" fill="#8b949e">— every run leaves a trace you can replay, score, and diff —</text>
+    </g>
+  </g>
+</svg>

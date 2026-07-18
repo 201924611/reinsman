@@ -8,6 +8,10 @@
 **Agent = Model + Harness.** This repo is the *harness*: the loop, tool dispatch,
 context management, memory, observability, and safety scaffolding around the model.
 
+<p align="center">
+  <img src="docs/assets/demo.svg" alt="Example session: one POST /goal, the orchestrator plans, spawns sub-agents, iterates a build loop with evaluation scores, persists knowledge, and leaves a replayable trace" width="860">
+</p>
+
 ```
 HTTP POST /goal  ──▶  central orchestrator (reinsman/runtime/orchestrator.py)
                         │  spawn_agent / build_loop / spawn_parallel
