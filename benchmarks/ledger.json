@@ -1,0 +1,42 @@
+[
+  {
+    "run_at": "2026-07-18T17:39:06+00:00",
+    "harness_sha": "a52e013",
+    "results": [
+      {
+        "id": "file-transform",
+        "axis": "data",
+        "task_id": "d88de88fa7bc",
+        "status": "done",
+        "overall": 0.907,
+        "completion": 0.9,
+        "quality": 0.85,
+        "safety": 1.0,
+        "efficiency": 0.88
+      },
+      {
+        "id": "web-card",
+        "axis": "web",
+        "task_id": "dae8cee0db68",
+        "status": "done",
+        "overall": 0.905,
+        "completion": 0.85,
+        "quality": 0.85,
+        "safety": 1.0,
+        "efficiency": 0.92
+      },
+      {
+        "id": "tool-smith",
+        "axis": "tooling",
+        "task_id": "74bb144aacb5",
+        "status": "done",
+        "overall": 0.688,
+        "completion": 0.7,
+        "quality": 0.65,
+        "safety": 0.95,
+        "efficiency": 0.45
+      }
+    ],
+    "suite_overall": 0.833
+  }
+]

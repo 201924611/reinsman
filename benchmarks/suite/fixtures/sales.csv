@@ -1,0 +1,11 @@
+date,region,product,units,unit_price
+2026-01-05,EMEA,alpha,12,49.0
+2026-01-07,APAC,alpha,8,49.0
+2026-01-09,AMER,beta,20,19.5
+2026-01-12,EMEA,beta,5,19.5
+2026-01-15,APAC,gamma,3,199.0
+2026-01-18,AMER,alpha,15,49.0
+2026-01-21,EMEA,gamma,2,199.0
+2026-01-24,APAC,beta,11,19.5
+2026-01-27,AMER,gamma,1,199.0
+2026-01-30,EMEA,alpha,7,49.0

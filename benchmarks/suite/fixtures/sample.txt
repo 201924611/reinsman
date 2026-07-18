@@ -1,0 +1,3 @@
+The harness runs the loop and the loop runs the model.
+The model proposes, the harness disposes; the loop decides what the model sees next.
+A good harness measures the loop, and a measured loop improves the harness.

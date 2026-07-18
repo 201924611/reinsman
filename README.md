@@ -44,6 +44,20 @@ counts are deliberately not claimed.
 - **Observability** — per-task tracing + LLM-judge evaluation (`tracing.py`, `evaluation.py`)
 - **Scheduler** — recurring routines submitted as goals (`routines.py`)
 
+## 📈 It benchmarks itself — and keeps the receipts
+
+On a schedule, the harness re-runs a fixed goal suite ([`benchmarks/suite/`](benchmarks/suite/)),
+scores each run with its **own LLM judge**, and commits the scores, trace ids, and progress
+curve to [`benchmarks/LEDGER.md`](benchmarks/LEDGER.md). Improvements *and regressions* both
+stay on the public record — every number maps to a replayable trace, none are hand-written
+(see [`benchmarks/run_suite.py`](benchmarks/run_suite.py)). To reproduce: start the server and run
+
+```bash
+python benchmarks/run_suite.py
+```
+
+<p align="center"><img src="benchmarks/curve.svg" alt="Self-measured suite score over time" width="640"></p>
+
 ## Roadmap — self-evolving harness
 The direction is not a feature-list race but a harness that **improves itself from evidence**
 (own traces/evals → proposals → A/B → gated apply). In priority order:
@@ -52,7 +66,8 @@ The direction is not a feature-list race but a harness that **improves itself fr
    improvement proposals (diff drafts) for the gate; never auto-applied
 2. **Skill distillation** — compile successful goal traces into reusable skills (SOP + tool scripts)
 3. **`self_improve` at code level** — extend the existing propose/apply/revert gate from prompts
-   to harness code and tools
+   to harness code and tools; the [self-benchmark ledger](benchmarks/LEDGER.md) (already live)
+   is the regression gate for this
 4. **Verify-loop generalization** — factor the observer out of `build_loop` into plugins
    (screenshots today; test runs, LLM judges, live metrics next), so the same loop verifies any
    kind of artifact
