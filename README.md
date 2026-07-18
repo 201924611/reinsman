@@ -1,9 +1,9 @@
 # reinsman
 
 > A self-hosted **agent harness** — throw one HTTP *goal* at it and a 24/7 central
-> orchestrator (Claude, opus) carries it out autonomously, spawning sub-agents and
-> iterating on builds, while persisting what it learns into a local Obsidian-style
-> knowledge graph.
+> orchestrator (Claude, opus) carries it out autonomously: spawning sub-agents,
+> looping *make → observe → score → retry* until its own evaluator signs off, and
+> persisting what it learns into a local Obsidian-style knowledge graph.
 
 **Agent = Model + Harness.** This repo is the *harness*: the loop, tool dispatch,
 context management, memory, observability, and safety scaffolding around the model.
@@ -34,12 +34,28 @@ counts are deliberately not claimed.
 ## Features
 - **Central orchestrator loop** with auto-resume on turn exhaustion (`reinsman/runtime/orchestrator.py`)
 - **Dynamic sub-agents** from cited prompt templates (`reinsman/runtime/agent_factory.py`, `templates/`)
-- **`build_loop`** — planner → executor → evaluator iteration with best-round snapshot restore
+- **Verify loop** (`build_loop`) — a closed *make → observe → score → retry* cycle
+  (planner → executor → evaluator) with best-round snapshot restore. The current observer is
+  screenshots (web/file artifacts); pluggable observers — test runs, LLM judges, live metrics —
+  are on the roadmap below
 - **Persistent knowledge graph** — `save_knowledge` writes an Obsidian-compatible vault
   (`knowledge/`, `[[wikilinks]]` + auto Index/Graph)
 - **Channels** — chat front via messengers, decoupled from the engine (`channels/`, Telegram bridge included)
 - **Observability** — per-task tracing + LLM-judge evaluation (`tracing.py`, `evaluation.py`)
 - **Scheduler** — recurring routines submitted as goals (`routines.py`)
+
+## Roadmap — self-evolving harness
+The direction is not a feature-list race but a harness that **improves itself from evidence**
+(own traces/evals → proposals → A/B → gated apply). In priority order:
+
+1. **ecosystem-watch** — a weekly routine that scans agent-ecosystem releases/trends and files
+   improvement proposals (diff drafts) for the gate; never auto-applied
+2. **Skill distillation** — compile successful goal traces into reusable skills (SOP + tool scripts)
+3. **`self_improve` at code level** — extend the existing propose/apply/revert gate from prompts
+   to harness code and tools
+4. **Verify-loop generalization** — factor the observer out of `build_loop` into plugins
+   (screenshots today; test runs, LLM judges, live metrics next), so the same loop verifies any
+   kind of artifact
 
 ## Quick start
 ```bash
