@@ -18,6 +18,15 @@ HTTP POST /goal  ──▶  central orchestrator (agent_core/runtime/orchestrato
 HTTP GET /tasks/{id} ──▶ progress / result
 ```
 
+## 🧾 This project's launch was run *by* the agent
+
+The promo for agent-core wasn't written by a human about the tool — it was submitted to the tool as **one
+goal** and executed autonomously (research → skeptic self-critique → asset build), leaving a
+machine-verifiable, **one-command-reproducible** trail in [`docs/self-run-launch/`](docs/self-run-launch/).
+Don't trust the pitch — **verify it** against the code, then re-run the launch yourself.
+Measured, not marketing (e.g. context isolation cut an identical task **$3.74 → $1.42, −62%**); star/user
+counts are deliberately not claimed.
+
 ## Features
 - **Central orchestrator loop** with auto-resume on turn exhaustion (`agent_core/runtime/orchestrator.py`)
 - **Dynamic sub-agents** from cited prompt templates (`agent_core/runtime/agent_factory.py`, `templates/`)
