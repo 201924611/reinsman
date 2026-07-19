@@ -139,6 +139,20 @@ equivalent in a `systemd --user` / `launchd` unit.)
 Note: even as an app, each user still authenticates once (`ANTHROPIC_API_KEY` in `.env`
 or a Claude CLI login) — credentials are never bundled.
 
+## Use it from other agents (MCP)
+reinsman ships as an **MCP server**, so any MCP client (Claude Code, Claude Desktop, …)
+can hand it long-running goals and keep working while the harness executes:
+
+```bash
+pip install "reinsman[mcp]"
+claude mcp add reinsman -- reinsman-mcp     # Claude Code one-liner
+```
+
+Tools exposed: `submit_goal` (returns a task_id immediately), `get_task` (progress /
+result / recent events), `list_tasks`. The bridge talks to your running server
+(`REINSMAN_URL`, default `http://127.0.0.1:8848`) — an assistant delegates the
+hours-long work and collects the traced, evaluated result later.
+
 ## Chat UI & channels
 The **built-in web chat** (served at `/`) is the zero-setup way to use the harness —
 just run the server and open the browser. It posts to `/goal` and streams live progress.

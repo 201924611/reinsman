@@ -37,8 +37,12 @@ Repository = "https://github.com/201924611/reinsman"
 "Self-Benchmark Ledger" = "https://github.com/201924611/reinsman/blob/main/benchmarks/LEDGER.md"
 "Launch Provenance" = "https://github.com/201924611/reinsman/tree/main/docs/self-run-launch"
 
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+
 [project.scripts]
 reinsman = "reinsman.__main__:main"
+reinsman-mcp = "reinsman.channels.mcp_server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["reinsman"]

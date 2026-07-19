@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.201924611/reinsman",
+  "description": "Self-hosted agent harness: hand it one goal and a resident orchestrator executes it autonomously (sub-agents, verify loop, tracing + LLM-judge evals). Tools: submit_goal, get_task, list_tasks.",
+  "repository": {
+    "url": "https://github.com/201924611/reinsman",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registry_type": "pypi",
+      "identifier": "reinsman",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "runtime_hint": "reinsman-mcp",
+      "environment_variables": [
+        {
+          "name": "REINSMAN_URL",
+          "description": "Base URL of the running reinsman server (default http://127.0.0.1:8848)",
+          "is_required": false
+        }
+      ]
+    }
+  ]
+}
