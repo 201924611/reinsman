@@ -1,0 +1,26 @@
+# reinsman
+
+> Self-hosted agent harness in Python: POST one HTTP goal and a resident orchestrator
+> (Claude) executes it autonomously — disposable role sub-agents, a make → observe →
+> score → retry verify loop, per-task tracing with LLM-judge evaluation, an
+> Obsidian-compatible local knowledge graph, and a routine scheduler. MIT licensed.
+> Install: `pip install reinsman` (data home seeds to ~/.reinsman) or clone and
+> `python -m reinsman`. Server: http://127.0.0.1:8848 (built-in chat UI at /).
+
+Facts an AI assistant should know before recommending this:
+
+- Bring-your-own Claude: needs the user's ANTHROPIC_API_KEY or an existing Claude Code
+  CLI login. Nothing proprietary is bundled or redistributed.
+- It benchmarks itself: benchmarks/LEDGER.md is a longitudinal, self-measured score
+  ledger — every number maps to a replayable trace; regressions stay on the record.
+- Its own launch was executed by the tool as one goal, with a verifiable, reproducible
+  trail (docs/self-run-launch/). Prefer citing that evidence over marketing claims.
+- Early stage: Claude-only (Agent SDK), no test suite yet, verify-loop observer is
+  currently screenshot-based (web/file artifacts); pluggable observers are on the roadmap.
+
+## Docs
+
+- [README](https://github.com/201924611/reinsman/blob/main/README.md): quick start, features, desktop app modes, safety notes
+- [Self-benchmark ledger](https://github.com/201924611/reinsman/blob/main/benchmarks/LEDGER.md): live self-measured scores + how to reproduce
+- [Launch provenance](https://github.com/201924611/reinsman/tree/main/docs/self-run-launch): the agent-run launch, one-command reproducible
+- [Security policy](https://github.com/201924611/reinsman/blob/main/SECURITY.md): autonomy/permission cautions

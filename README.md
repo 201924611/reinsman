@@ -73,6 +73,14 @@ The direction is not a feature-list race but a harness that **improves itself fr
    kind of artifact
 
 ## Quick start
+
+Via pip (data home is seeded to `~/.reinsman` on first run):
+```bash
+pip install reinsman
+reinsman                  # serves on 127.0.0.1:8848
+```
+
+Or from source:
 ```bash
 python -m venv .venv && . .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt

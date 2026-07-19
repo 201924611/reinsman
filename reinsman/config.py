@@ -34,8 +34,13 @@ def _seed(root: Path, bundle: Path) -> None:
 if getattr(sys, "frozen", False):
     ROOT = Path(os.environ.get("REINSMAN_HOME") or (Path.home() / ".reinsman")).resolve()
     _seed(ROOT, Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)))
-else:
+elif (Path(__file__).resolve().parent.parent / "templates").exists():
+    # Running from a source checkout: the repo root is the data home.
     ROOT = Path(__file__).resolve().parent.parent
+else:
+    # pip-installed: same writable home as the frozen build, seeded from packaged assets.
+    ROOT = Path(os.environ.get("REINSMAN_HOME") or (Path.home() / ".reinsman")).resolve()
+    _seed(ROOT, Path(__file__).resolve().parent / "_assets")
 
 # Load .env (if present)
 load_dotenv(ROOT / ".env")

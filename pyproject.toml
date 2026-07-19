@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "reinsman"
+version = "0.1.0"
+description = "Self-hosted agent harness: POST one goal and a resident orchestrator carries it out autonomously — sub-agents, a make/observe/score/retry verify loop, tracing + LLM-judge evals, and an Obsidian-style knowledge graph. Benchmarks itself and keeps the receipts."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "jinsu", email = "hu349401@gmail.com" }]
+keywords = ["agent", "harness", "orchestration", "ai-agents", "claude", "autonomous-agents", "multi-agent", "self-hosted"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "claude-agent-sdk>=0.1.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/201924611/reinsman"
+Repository = "https://github.com/201924611/reinsman"
+"Self-Benchmark Ledger" = "https://github.com/201924611/reinsman/blob/main/benchmarks/LEDGER.md"
+"Launch Provenance" = "https://github.com/201924611/reinsman/tree/main/docs/self-run-launch"
+
+[project.scripts]
+reinsman = "reinsman.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["reinsman"]
+
+# Ship the runtime assets inside the wheel; on first run a pip install seeds
+# ~/.reinsman from these (same flow as the frozen .exe build).
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "reinsman/_assets/templates"
+"agents" = "reinsman/_assets/agents"
+".env.example" = "reinsman/_assets/.env.example"
