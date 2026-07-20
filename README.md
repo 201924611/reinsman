@@ -107,6 +107,8 @@ so you can talk to the agent immediately (no extra setup).
 Authentication: either set `ANTHROPIC_API_KEY` in `.env`, or log in with the Claude
 Code CLI (leave the key blank and the SDK follows the CLI session).
 
+Not sure what to try first? See [Example goals](docs/EXAMPLE_GOALS.md) — from 30-second sanity checks to walk-away missions.
+
 Prefer the API? Submit a goal directly:
 ```bash
 curl -s http://127.0.0.1:8848/goal \
