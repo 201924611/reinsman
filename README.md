@@ -212,3 +212,5 @@ subject to Anthropic's terms. The prompt templates cite their public sources (se
 ## License
 MIT — see [LICENSE](LICENSE). The MIT license covers this repository's own code only, not Claude
 or any third-party software you install to run it.
+
+<!-- mcp-name: io.github.201924611/reinsman -->
