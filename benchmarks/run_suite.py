@@ -66,9 +66,22 @@ def api(method: str, path: str, payload: dict | None = None, timeout: int = 600)
         return json.loads(resp.read().decode())
 
 
+def fixtures_digest() -> str:
+    """One digest over every fixture file — detects a run tampering with its own inputs."""
+    import hashlib
+    h = hashlib.sha256()
+    for f in sorted((SUITE_DIR / "fixtures").glob("*")):
+        h.update(f.name.encode())
+        h.update(f.read_bytes())
+    return h.hexdigest()[:16]
+
+
 def run_goal(item: dict) -> dict:
     print(f"[suite] {item['id']}: submitting...")
-    task_id = api("POST", "/goal", {"goal": item["goal"], "variant": "benchmark"})["task_id"]
+    # Pin the repo root in the goal text: the agent's cwd is the workspace, and the
+    # baseline run showed relative fixture paths cost turns (and risk fixture rewrites).
+    goal = f"Repository root: {BENCH_DIR.parent}. All repo paths below are relative to it.\n\n" + item["goal"]
+    task_id = api("POST", "/goal", {"goal": goal, "variant": "benchmark"})["task_id"]
     deadline = time.time() + item["timeout_minutes"] * 60
     status = "running"
     while time.time() < deadline:
@@ -195,10 +208,16 @@ def main() -> int:
         print(f"[dry-run] outputs re-rendered from {len(runs)} recorded run(s). No API calls made.")
         return 0
 
+    digest_before = fixtures_digest()
     results = [run_goal(item) for item in suite]
+    fixtures_intact = fixtures_digest() == digest_before
+    if not fixtures_intact:
+        print("[suite] WARNING: fixtures changed during the run — recorded as tampered; "
+              "restore them from git before the next run.")
     entry = {
         "run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "harness_sha": harness_sha(),
+        "fixtures_intact": fixtures_intact,
         "results": results,
         "suite_overall": round(sum(r["overall"] for r in results) / len(results), 3),
     }
