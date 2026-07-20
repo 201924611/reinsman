@@ -58,6 +58,20 @@ python benchmarks/run_suite.py
 
 <p align="center"><img src="benchmarks/curve.svg" alt="Self-measured suite score over time" width="640"></p>
 
+## ⭐ Star-Fueled Development — your star makes the agent work
+
+A GitHub star is usually applause. Here it's **fuel**: every 10 new stars automatically
+unlock one autonomous run — the harness picks the top-👍 [`goal` issue](../../issues?q=is%3Aissue+is%3Aopen+label%3Agoal),
+executes it, and commits the result with the unlock number and a replayable trace id
+([`starfuel/LEDGER.md`](starfuel/LEDGER.md)). Propose a goal, vote with 👍, star to fire.
+
+<p align="center"><img src="starfuel/progress.svg" alt="Stars until the next autonomous run" width="420"></p>
+
+Fair-play notes: stars are voluntary and unrewarded (nothing of value is given to any
+individual for starring); goals are restricted to improving this repository, behind the
+orchestrator's safety guard; unlocks are recorded by [`star_fuel.py`](starfuel/star_fuel.py),
+never hand-written.
+
 ## Roadmap — self-evolving harness
 The direction is not a feature-list race but a harness that **improves itself from evidence**
 (own traces/evals → proposals → A/B → gated apply). In priority order:
